@@ -1,13 +1,6 @@
 name: Size History
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-  merge_group:
-
-  workflow_dispatch:
-
 jobs:
   analyze:
     runs-on: ubuntu-24.04

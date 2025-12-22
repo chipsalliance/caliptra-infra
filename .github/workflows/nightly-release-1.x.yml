@@ -1,11 +1,6 @@
 name: Nightly Release
 
 on:
-  workflow_dispatch:
-  schedule:
-  # 2:11 AM PST tuesday-saturday
-  - cron: '11 10 * * 2-6'
-
 jobs:
   find-latest-release:
     name: Find Latest Release

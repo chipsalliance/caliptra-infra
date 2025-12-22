@@ -3,14 +3,6 @@
 name: Verilator Hardware Model
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-  merge_group:
-
-  workflow_call:
-  workflow_dispatch:
-
 jobs:
   build_and_test:
     name: Verilator Build and Test

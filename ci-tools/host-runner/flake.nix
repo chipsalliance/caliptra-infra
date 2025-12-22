@@ -2,9 +2,9 @@
   description = "Caliptra Raspberry PI Host Runner Image";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
-    rtool.url = "github:chipsalliance/caliptra-sw?dir=ci-tools/github-runner";
-    fpga-boss.url = "github:chipsalliance/caliptra-sw?dir=ci-tools/fpga-boss";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
+    rtool.url = "github:chipsalliance/caliptra-infra?dir=ci-tools/github-runner";
+    fpga-boss.url = "github:chipsalliance/caliptra-infra?dir=ci-tools/fpga-boss";
   };
 
   outputs =

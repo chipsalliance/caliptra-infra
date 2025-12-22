@@ -2,21 +2,6 @@
 name: Build and Test Firmware (in emulator)
 
 on:
-  workflow_call:
-    inputs:
-      artifact-suffix:
-        type: string
-        required: false
-      extra-features:
-        default:
-        type: string
-      rom-logging:
-        default: true
-        type: boolean
-      rom-version:
-        default: "latest"
-        type: string
-
 jobs:
   build_and_test:
     runs-on: ubuntu-22.04

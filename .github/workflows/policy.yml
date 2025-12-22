@@ -1,11 +1,6 @@
 name: Policy
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-  merge_group:
-
 jobs:
   check_policy:
     runs-on: ubuntu-22.04
