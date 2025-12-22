@@ -1,9 +1,5 @@
 name: Fuzz Testing Nightly
 on:
-  schedule:
-    # 3:00 AM PST monday-saturday
-    - cron: '00 11 * * 1-6'
-
 jobs:
   image_verify_seed_corpus:
     name: Build Image Verifier seed corpus

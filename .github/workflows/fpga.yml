@@ -2,43 +2,6 @@
 name: FPGA Build
 
 on:
-  pull_request:
-  merge_group:
-  workflow_call:
-    inputs:
-      artifact-suffix:
-        type: string
-        required: false
-      extra-features:
-        default:
-        type: string
-      rom-logging:
-        default: true
-        type: boolean
-      fpga-itrng:
-        default: true
-        type: boolean
-      hw-version:
-        default: "latest"
-        type: string
-      rom-version:
-        default: "latest"
-        type: string
-      workflow_call:
-        description: 'Set true for workflow_call'
-        default: true
-        type: boolean
-      branch:
-        default: ${{ github.sha }}
-        type: string
-
-  workflow_dispatch:
-    inputs:
-      fpga-itrng:
-        default: true
-        type: boolean
-
-
 jobs:
   check_cache:
     runs-on: ubuntu-22.04

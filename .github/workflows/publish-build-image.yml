@@ -1,13 +1,6 @@
 name: Publish Docker Build Image
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'ci-tools/build-image/Dockerfile'
-  workflow_dispatch:
-
 jobs:
   # Publishes "ghcr.io/chipsalliance/caliptra-build-image".
   build-and-publish:

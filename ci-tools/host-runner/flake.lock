@@ -44,17 +44,17 @@
       },
       "locked": {
         "dir": "ci-tools/fpga-boss",
-        "lastModified": 1764887688,
-        "narHash": "sha256-srBqWWmBi5q9Ge14QBOhVS6t3Q7TMlsu0HfJ84CAAOM=",
+        "lastModified": 1765928865,
+        "narHash": "sha256-v0W+PZnU4z0swENUYusdU6sV+cYkZ8l0sorYy2Uw0ag=",
         "owner": "chipsalliance",
-        "repo": "caliptra-sw",
-        "rev": "4ba58edcbfb0ef9e49159b787e74a0d031b1d7e0",
+        "repo": "caliptra-infra",
+        "rev": "68cca2bd25bf1d574f73eca6396bf1c6dc6dfac3",
         "type": "github"
       },
       "original": {
         "dir": "ci-tools/fpga-boss",
         "owner": "chipsalliance",
-        "repo": "caliptra-sw",
+        "repo": "caliptra-infra",
         "type": "github"
       }
     },
@@ -92,16 +92,16 @@
     },
     "nixpkgs_3": {
       "locked": {
-        "lastModified": 1764560356,
-        "narHash": "sha256-M5aFEFPppI4UhdOxwdmceJ9bDJC4T6C6CzCK1E2FZyo=",
+        "lastModified": 1766201043,
+        "narHash": "sha256-eplAP+rorKKd0gNjV3rA6+0WMzb1X1i16F5m5pASnjA=",
         "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "6c8f0cca84510cc79e09ea99a299c9bc17d03cb6",
+        "rev": "b3aad468604d3e488d627c0b43984eb60e75e782",
         "type": "github"
       },
       "original": {
         "owner": "nixos",
-        "ref": "nixos-25.05",
+        "ref": "nixos-25.11",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -136,17 +136,17 @@
       },
       "locked": {
         "dir": "ci-tools/github-runner",
-        "lastModified": 1764887688,
-        "narHash": "sha256-srBqWWmBi5q9Ge14QBOhVS6t3Q7TMlsu0HfJ84CAAOM=",
+        "lastModified": 1765928865,
+        "narHash": "sha256-v0W+PZnU4z0swENUYusdU6sV+cYkZ8l0sorYy2Uw0ag=",
         "owner": "chipsalliance",
-        "repo": "caliptra-sw",
-        "rev": "4ba58edcbfb0ef9e49159b787e74a0d031b1d7e0",
+        "repo": "caliptra-infra",
+        "rev": "68cca2bd25bf1d574f73eca6396bf1c6dc6dfac3",
         "type": "github"
       },
       "original": {
         "dir": "ci-tools/github-runner",
         "owner": "chipsalliance",
-        "repo": "caliptra-sw",
+        "repo": "caliptra-infra",
         "type": "github"
       }
     },

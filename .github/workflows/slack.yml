@@ -1,9 +1,5 @@
 name: Publish merged PRs on Slack
 on:
-  pull_request_target:
-    types: [closed]
-    branches: [main]
-
 jobs:
   slack_publish:
     runs-on: ubuntu-22.04

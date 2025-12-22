@@ -2,45 +2,6 @@
 name: Subsystem FPGA Build
 
 on:
-  pull_request:
-  merge_group:
-  workflow_call:
-    inputs:
-      artifact-suffix:
-        type: string
-        required: false
-      extra-features:
-        default:
-        type: string
-      rom-logging:
-        default: true
-        type: boolean
-      fpga-itrng:
-        default: true
-        type: boolean
-      ocp-lock:
-        default: true
-        type: boolean
-      hw-version:
-        default: "latest"
-        type: string
-      rom-version:
-        default: "latest"
-        type: string
-      workflow_call:
-        description: 'Set true for workflow_call'
-        default: true
-        type: boolean
-      branch:
-        default: ${{ github.sha }}
-        type: string
-
-  workflow_dispatch:
-    inputs:
-      fpga-itrng:
-        default: true
-        type: boolean
-
 env:
   CALIPTRA_MCU_COMMIT: 982ca4f02b7e9fefb58850657246b0c8f28e5b53
 
