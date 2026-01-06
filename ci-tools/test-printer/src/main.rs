@@ -30,6 +30,8 @@ struct TestSuite {
 struct TestCase {
     #[serde(rename = "@name", default)]
     name: String,
+    #[serde(rename = "@time", default)]
+    time: Option<f64>,
     #[serde(rename = "failure", default)]
     failure: Option<Failure>,
     #[serde(rename = "rerunFailure", default)]
@@ -48,13 +50,19 @@ enum TestStatus {
     Retried,
 }
 
+struct TestResult {
+    suite_name: String,
+    case_name: String,
+    status_icon: &'static str,
+    time: f64,
+}
+
 fn main() {
     let args = Args::parse();
     let xml = fs::read_to_string(args.xml_path).expect("Unable to read junit.xml");
     let testsuites: TestSuites = quick_xml::de::from_str(&xml).expect("Unable to parse XML");
 
-    println!("| Test Suite | Test | Status |");
-    println!("|---|---|---|");
+    let mut results = Vec::new();
 
     for suite in testsuites.testsuites {
         for case in suite.testcases {
@@ -72,7 +80,21 @@ fn main() {
                 TestStatus::Retried => "🔁",
             };
 
-            println!("| {} | {} | {} |", suite.name, case.name, status_icon);
+            results.push(TestResult {
+                suite_name: suite.name.clone(),
+                case_name: case.name,
+                status_icon,
+                time: case.time.unwrap_or(0.0),
+            });
         }
+    }
+
+    results.sort_by(|a, b| b.time.partial_cmp(&a.time).unwrap_or(std::cmp::Ordering::Equal));
+
+    println!("| Test Suite | Test | Status | Time |");
+    println!("|---|---|---|---|");
+
+    for result in results {
+        println!("| {} | {} | {} | {:.3}s |", result.suite_name, result.case_name, result.status_icon, result.time);
     }
 }
