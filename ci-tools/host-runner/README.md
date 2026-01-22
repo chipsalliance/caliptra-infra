@@ -18,7 +18,7 @@ boot.binfmt.emulatedSystems = [ "aarch64-linux" ];
 
 If you are not using a NixOS system, follow these steps.
 
-1. Install Nix
+1. Install Nix (version 2.31.2 in particular)
 1. Install cross-compilation tools
     - E.g. on Debian, `sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 binfmt-support qemu-user-static`
 1. Update your Nix config to the following
@@ -31,6 +31,8 @@ experimental-features = nix-command flakes
 trusted-users = $USER
 extra-platforms = aarch64-linux
 extra-sandbox-paths = /usr/bin/qemu-aarch64-static
+filter-syscalls = false
+download-buffer-size = 524288000
 EOF
 ```
 
@@ -85,9 +87,11 @@ Once the image is flashed the Raspberry PI should be ready to boot, assuming sec
 If your hostrunner already is running NixOS, you can manage it over SSH. Below is an example command to cross-compile the caliptra-hostrunner0. After the cross-compiling the configuration, the `switch` command will switch the hostrunner to the new config.
 
 The `--target-host` takes an ssh target as a parameter.
+The following command should be run from this directory. When prompted, supply the user password you created above.
 
 ```bash
-nix run nixpkgs#nixos-rebuild -- --target-host caliptra-hostrunner0 --use-remote-sudo switch --flake path:.#caliptra-hostrunner0 --impure # --target-host "caliptra-hostrunner0" is an SSH Host and --flake path:.#caliptra-hostrunner0 is the flake target
+# Note: --target-host "caliptra-hostrunner0" is an SSH Host and --flake path:.#caliptra-hostrunner0 is the flake target
+nix run nixpkgs#nixos-rebuild -- --target-host caliptra-hostrunner0 --sudo switch --flake path:.#caliptra-hostrunner0 --impure --ask-sudo-password
 ```
 
 # Udev
