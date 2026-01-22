@@ -67,6 +67,8 @@ in
     extraGroups = [
       "wheel"
       "networkmanager"
+      "dialout"
+      "tty"
     ];
 
     # The fpga ci runner services are defined as systemd user services.
@@ -100,14 +102,16 @@ in
 
   programs.zsh.enable = true;
   services.udev.extraRules = ''
-    SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6011", OWNER="${user}", GROUP="users"
-    SUBSYSTEMS=="usb", ATTRS{idVendor}=="04e8", ATTRS{idProduct}=="6001", OWNER="${user}", GROUP="users"
-    SUBSYSTEMS=="usb", ATTRS{idVendor}=="0424", ATTRS{idProduct}=="2640", OWNER="${user}", GROUP="users"
-    SUBSYSTEMS=="usb", ATTRS{idVendor}=="0424", ATTRS{idProduct}=="4050", OWNER="${user}", GROUP="users"
+    # FPGA FTDI Chip
+    SUBSYSTEMS=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6011", GROUP="dialout", MODE="0666"
+
+    # sdwire
+    SUBSYSTEMS=="usb", ATTRS{idVendor}=="0424", ATTRS{idProduct}=="2640", GROUP="dialout", MODE="0666"
+    SUBSYSTEMS=="usb", ATTRS{idVendor}=="0424", ATTRS{idProduct}=="4050", GROUP="dialout", MODE="0666"
+    SUBSYSTEMS=="usb", ATTRS{idVendor}=="04e8", ATTRS{idProduct}=="6001", GROUP="dialout", MODE="0666"
 
     # usbsdmux
-    SUBSYSTEMS=="usb", ATTRS{idVendor}=="0424", ATTRS{idProduct}=="4041", OWNER="${user}", GROUP="users"
-    SUBSYSTEMS=="usb", ATTRS{idVendor}=="0424", ATTRS{idProduct}=="2640", OWNER="${user}", GROUP="users"
+    SUBSYSTEMS=="usb", ATTRS{idVendor}=="0424", ATTRS{idProduct}=="4041", GROUP="dialout", MODE="0666"
   '';
   services.udev.packages = [ pkgs.usbsdmux ];
 
