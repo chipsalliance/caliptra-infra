@@ -132,3 +132,16 @@ For an example, see [hostrunners/kir-0.nix](hostrunners/kir-0.nix) for 3 ZCU-104
 
 Auto-format the nix code with `$ nix shell nixpkgs#{nixfmt-rfc-style,nixfmt-tree} && treefmt`.
 
+## Updating Dependencies
+
+### Everything
+
+`$ nix flake update`
+
+### Fpga Boss only
+
+`$ nix flake update fpga-boss`
+
+### rtool only
+
+`$ nix flake update rtool`
