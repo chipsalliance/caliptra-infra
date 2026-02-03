@@ -16,6 +16,10 @@
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOqxIT54u8MjPlfrEbBNI01f1irf27GfeZF9uCjPdkaI josecipriano@josecipriano.c.googlers.com"
     # zhalvorsen
     "ecdsa-sha2-nistp384 AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzODQAAABhBLCee6PZ63j9MXxo2LIB6K7I5WmIKJAWdww922p9klsKVhLkMpNPXkLtYaf44GDLSmNO1j2stkXw174agt722rAa6fNInSCY8HPpAlyAJ7xELEGDOb5FfQVJU5ruGYJ7LQ== zhalvorsen@zhalvorsen.c.googlers.com"
+    # anamendes23
+    "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBO22BHitOGrsd2rHMBl2M4L9AtbE6gtiiVxQpPcS9tJKB74HW3O9Wnfs3sLW2wrxIQ7VD4OWDBiqpcJpiLGIsOg= publickey"
+    # <FILL IN GITHUB ID>
+    "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBBSMeiXDietN3p773SQOi3I2WllGqldrzwj/9R/T/PgKcKSj8K+Fi/YkHFIrsgXwbRbhWDXCEE/1XGhuQmcNszU= publickey"
   ];
   nine_elements_keys = [
     # leongross
