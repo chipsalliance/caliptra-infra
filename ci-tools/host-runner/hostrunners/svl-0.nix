@@ -31,7 +31,6 @@ in
       ftdi = "1-1.2.1.4";
       sdwire = "1-1.1";
     })
-    # Note don't start this one. It's a dev board.
     (fpga_service.mkVckSubsystemJob "caliptra-svl-vck-3" {
       ftdi = "1-1.2.1.2";
       sdwire = "1-1.2.1.3";
