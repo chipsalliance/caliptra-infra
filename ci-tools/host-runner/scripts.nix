@@ -77,4 +77,42 @@
 
     ${fpga-boss}/bin/caliptra-fpga-boss --zcu104 $ZCU_FTDI $SD_MUX serve $IMAGE -- ${rtool}/bin/rtool jitconfig "$FPGA_TARGET" 379559 40993215 "$IDENTIFIER-$RAND_POSTFIX"
   '';
+  usb-setup = pkgs.writeShellScriptBin "usb-setup.sh" ''
+    #!${pkgs.bash}/bin/bash
+    ZCU_ID="0403:6011"
+    SDWIRE_ID="04e8:6001"
+
+    echo "Listening for ZCU104 and SDWire connections..."
+    echo "------------------------------------------------"
+
+    # Monitor dmesg for new USB devices
+    sudo dmesg -w | while read -r line; do
+        
+        if echo "$line" | grep -q "New USB device found"; then
+            
+            # Extract the USB Topology Path (e.g., 1-14.6.2)
+            # It's usually the third field in the bracketed dmesg output
+            USB_PATH=$(echo "$line" | awk -F'usb ' '{print $2}' | awk -F':' '{print $1}')
+            
+            # Extract Vendor and Product IDs from the line
+            VENDOR=$(echo "$line" | sed -n 's/.*idVendor=\([0-9a-f]*\).*/\1/p')
+            PRODUCT=$(echo "$line" | sed -n 's/.*idProduct=\([0-9a-f]*\).*/\1/p')
+            CURRENT_ID="$VENDOR:$PRODUCT"
+
+            if [ "$CURRENT_ID" == "$ZCU_ID" ]; then
+                echo "[DETECTED] ZCU104 Board"
+                echo "           Parameter: --zcu104=$USB_PATH"
+                echo "------------------------------------------------"
+            
+            elif [ "$CURRENT_ID" == "$SDWIRE_ID" ]; then
+                # Use parameter expansion to remove the last suffix (e.g., .2)
+                SD_HUB_PATH="''${USB_PATH%.*}"
+                echo "[DETECTED] SDWire (FTDI Chip)"
+                echo "           Raw Path:  $USB_PATH"
+                echo "           Parameter: --sdwire=$SD_HUB_PATH"
+                echo "------------------------------------------------"
+            fi
+        fi
+    done
+  '';
 }

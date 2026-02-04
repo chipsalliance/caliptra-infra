@@ -98,6 +98,7 @@ in
     usbsdmux
     scripts.sync-images
     scripts.download-image
+    scripts.usb-setup
   ];
 
   programs.zsh.enable = true;
