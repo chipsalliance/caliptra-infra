@@ -1,7 +1,7 @@
 {
   googler_keys = [
     # clundin
-    "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBLxRYcd9xKpj9UK5ptbRGKqcNw1mTzwS2dhn3gPWTcjfzeFbgb5PK17fR6BVH7PDIHggYKL+vOVaBnekoWWSIPQ= publickey"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG8bsALwjQW9PZde+p6Fjwdz4UUB72O+OS339/wC56yD"
     # cfrantz
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFGaE+OpSSfjOO/J6ap0dpNWHwqG0IsuMK4Ca0LY2n3L cfrantz@cfrantz-desktop.svl.corp.google.com"
     # jhand
