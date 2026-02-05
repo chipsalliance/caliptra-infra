@@ -106,5 +106,19 @@
           ./hostrunners/svl-1.nix
         ];
       };
+      nixosConfigurations."caliptra-hostrunner-svl2" = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+        specialArgs = {
+          identifier = "2";
+          user = "hostrunner";
+          rtool = rtool-bin;
+          fpga-boss = fpga-boss-bin;
+          ssh_keys = keys.googler_keys;
+        };
+        modules = [
+          ./configuration.nix
+          ./hostrunners/svl-2.nix
+        ];
+      };
     };
 }
