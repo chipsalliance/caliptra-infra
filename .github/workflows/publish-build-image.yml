@@ -1,6 +1,14 @@
 name: Publish Docker Build Image
 
 on:
+  push:
+    branches: "main"
+    paths:
+      - "ci-tools/build-image/*"
+  schedule:
+    # 5:13 AM PST tuesday, thursday
+    - cron: '13 13 * * 2,4'
+
 jobs:
   # Publishes "ghcr.io/chipsalliance/caliptra-build-image".
   build-and-publish:
