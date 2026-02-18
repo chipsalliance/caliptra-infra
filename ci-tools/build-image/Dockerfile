@@ -5,7 +5,7 @@
 
 # Move dev images to debian.
 FROM debian:bookworm-slim
-RUN apt update && apt install gcc git curl make gcc-aarch64-linux-gnu libssl-dev pkg-config  -y
+RUN apt update && apt install gcc git curl make gcc-aarch64-linux-gnu libssl-dev pkg-config libclang-dev -y
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile=minimal -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 RUN rustup install nightly-2025-02-15 --profile=default --no-self-update \
