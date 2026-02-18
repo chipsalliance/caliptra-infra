@@ -3,7 +3,6 @@
 # This docker image shares a rootfs with the Caliptra FPGAs.
 # This image is used in various GitHub actions to cross-compile binaries targeting the FPGAs.
 
-# Move dev images to debian.
 FROM debian:bookworm-slim
 RUN apt update && apt install gcc git curl make gcc-aarch64-linux-gnu libssl-dev pkg-config libclang-dev -y
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --profile=minimal -y
