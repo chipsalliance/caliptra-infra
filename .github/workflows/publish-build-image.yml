@@ -8,6 +8,7 @@ on:
   schedule:
     # 5:13 AM PST tuesday, thursday
     - cron: '13 13 * * 2,4'
+  workflow_dispatch:
 
 jobs:
   # Publishes "ghcr.io/chipsalliance/caliptra-build-image".
@@ -16,6 +17,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      attestations: write
+      id-token: write
 
     steps:
       - name: Checkout repository
