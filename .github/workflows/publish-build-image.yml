@@ -17,8 +17,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      attestations: write
-      id-token: write
 
     steps:
       - name: Checkout repository
@@ -38,5 +36,5 @@ jobs:
           file: ci-tools/build-image/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/caliptra-build-image:latest
-            ghcr.io/${{ github.repository_owner }}/caliptra-build-image:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/caliptra-builder:latest
+            ghcr.io/${{ github.repository_owner }}/caliptra-builder:${{ github.sha }}
