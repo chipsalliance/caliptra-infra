@@ -19,19 +19,19 @@ let
 in
 {
   config = lib.mkMerge [
-    (fpga_service.mkVckSubsystemJob "caliptra-svl-vck-8" {
+    (fpga_service.mkVckSubsystemDev "ttrippel" {
       ftdi = "1-1.2.1.3";
       sdwire = "1-1.2.1.4";
     })
-    (fpga_service.mkVckSubsystemJob "caliptra-svl-vck-9" {
+    (fpga_service.mkVckSubsystemDev "amitkh" {
       ftdi = "1-1.2.1.2";
       sdwire = "1-1.2.1.1";
     })
-    (fpga_service.mkVckSubsystemJob "caliptra-svl-vck-10" {
+    (fpga_service.mkVckSubsystemDev "cfrantz" {
       ftdi = "1-1.2.3";
       sdwire = "1-1.2.4";
     })
-    (fpga_service.mkVckSubsystemJob "caliptra-svl-vck-11" {
+    (fpga_service.mkVckSubsystemDev "miguelosorio" {
       ftdi = "1-1.1";
       sdwire = "1-1.2.2";
     })

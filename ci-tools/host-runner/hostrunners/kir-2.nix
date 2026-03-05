@@ -25,8 +25,7 @@ in
       ftdi = "";
       sdwire = "";
     })
-    # Note don't start this one, zhalvorsen dev FPGA
-    (fpga_service.mkVckSubsystemJob "caliptra-kir-vck-3" {
+    (fpga_service.mkVckSubsystemDev "zhalvorsen" {
       ftdi = "1-1.2.3";
       sdwire = "1-1.2.4";
     })
@@ -34,12 +33,11 @@ in
       ftdi = "1-1.2.1.1";
       sdwire = "1-1.2.1.2";
     })
-    # Note don't start this one, clundin dev FPGA
-    (fpga_service.mkVckCoreJob "caliptra-kir-vck-6" {
+    (fpga_service.mkVckSubsystemDev "clundin" {
       ftdi = "1-1.2.1.4";
       sdwire = "1-1.2.1.3";
     })
-    (fpga_service.mkVckSubsystemJob "caliptra-kir-vck-7" {
+    (fpga_service.mkVckSubsystemDev "caliptra-kir-vck-7" {
       ftdi = "1-1.1.1.2";
       sdwire = "1-1.1.1.4";
     })
