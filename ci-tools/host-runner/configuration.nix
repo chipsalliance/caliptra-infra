@@ -99,6 +99,7 @@ in
     scripts.sync-images
     scripts.download-image
     scripts.usb-setup
+    scripts."restart-all-fpga-jobs"
   ];
 
   programs.zsh.enable = true;
