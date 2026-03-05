@@ -23,7 +23,7 @@
         ''IDENTIFIER="caliptra-bo-01"''
         ''FPGA_TARGET=""caliptra-fpga,caliptra-fpga-nightly""''
         ''IMAGE="/home/${user}/ci-images/zcu104.img"''
-        ''PATH=${pkgs.usbsdmux}/bin''
+        "PATH=${pkgs.usbsdmux}/bin"
       ];
     };
   };

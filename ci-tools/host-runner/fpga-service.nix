@@ -16,10 +16,14 @@ let
   };
   mkFpgaJob =
     name: target: image:
-    { ftdi, sdwire }:
+    {
+      ftdi,
+      sdwire,
+      enableService ? true,
+    }:
     {
       systemd.user.services."${name}" = {
-        enable = true;
+        enable = enableService;
         description = "${name} Service";
         after = [ "network.target" ];
         wantedBy = [ "multi-user.target" ];
@@ -51,26 +55,80 @@ let
       ];
     };
 in
-{
+rec {
   mkZcuJob =
     name:
-    { ftdi, sdwire }:
+    {
+      ftdi,
+      sdwire,
+      enableService ? true,
+    }:
     (mkFpgaJob name "caliptra-fpga,caliptra-fpga-nightly" "/home/${user}/ci-images/zcu104.img" {
       ftdi = ftdi;
       sdwire = sdwire;
+      inherit enableService;
     });
   mkVckSubsystemJob =
     name:
-    { ftdi, sdwire }:
+    {
+      ftdi,
+      sdwire,
+      enableService ? true,
+    }:
     (mkFpgaJob name "vck190-subsystem" "/home/${user}/ci-images/caliptra-fpga-image-subsystem.img" {
       ftdi = ftdi;
       sdwire = sdwire;
+      inherit enableService;
     });
   mkVckCoreJob =
     name:
-    { ftdi, sdwire }:
+    {
+      ftdi,
+      sdwire,
+      enableService ? true,
+    }:
     (mkFpgaJob name "vck190" "/home/${user}/ci-images/caliptra-fpga-image-core.img" {
       ftdi = ftdi;
       sdwire = sdwire;
+      inherit enableService;
     });
+  mkZcuJobDev =
+    name:
+    { ftdi, sdwire }:
+    (
+      let
+        args = {
+          ftdi = ftdi;
+          sdwire = sdwire;
+          enableService = false;
+        };
+      in
+      mkZcuJob name args
+    );
+  mkVckSubsystemDev =
+    name:
+    { ftdi, sdwire }:
+    (
+      let
+        args = {
+          ftdi = ftdi;
+          sdwire = sdwire;
+          enableService = false;
+        };
+      in
+      mkVckSubsystemJob name args
+    );
+  mkVckCoreDev =
+    name:
+    { ftdi, sdwire }:
+    (
+      let
+        args = {
+          ftdi = ftdi;
+          sdwire = sdwire;
+          enableService = false;
+        };
+      in
+      mkVckCoreJob name args
+    );
 }
