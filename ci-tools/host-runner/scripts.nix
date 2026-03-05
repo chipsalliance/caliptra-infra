@@ -54,7 +54,7 @@
     set -eux
     for dir in "/home/${user}/ci-images" "/home/${user}/dev-images"; do
         cd $dir
-        ${pkgs.fd}/bin/fd --glob "*.img*.old" --change-older-than "4 weeks" -X rm
+        ${pkgs.fd}/bin/fd --glob "*.img*.old*" --change-older-than "4 weeks" -X rm
     done
   '';
   fpga-boss-script = pkgs.writeShellScriptBin "fpga.sh" ''
