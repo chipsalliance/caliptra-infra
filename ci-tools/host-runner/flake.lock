@@ -44,11 +44,11 @@
       },
       "locked": {
         "dir": "ci-tools/fpga-boss",
-        "lastModified": 1769114574,
-        "narHash": "sha256-fdOinp41oypDOZ/9oxGZrqs8uGoCo9OuSy+uBTGk7uw=",
+        "lastModified": 1773076368,
+        "narHash": "sha256-09jEdTiWP3/ZghkcZi2q4L+ldy80TrPSyuA9VvTslfo=",
         "owner": "chipsalliance",
         "repo": "caliptra-infra",
-        "rev": "8290c97e14ef7f80776756e16e0baf838b599cdf",
+        "rev": "53fc0c73062095cc8b6a39333d47b0e2fb228555",
         "type": "github"
       },
       "original": {
