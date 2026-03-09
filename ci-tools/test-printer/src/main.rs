@@ -1,8 +1,8 @@
 // Licensed under the Apache-2.0 license
 
+use clap::Parser;
 use serde::Deserialize;
 use std::fs;
-use clap::Parser;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -44,15 +44,17 @@ struct Failure {}
 #[derive(Debug, Deserialize, Default)]
 struct RerunFailure {}
 
+#[derive(Clone, Copy)]
 enum TestStatus {
-    Passed,
     Failed,
     Retried,
+    Passed,
 }
 
 struct TestResult {
     suite_name: String,
     case_name: String,
+    status: TestStatus,
     status_icon: &'static str,
     time: f64,
 }
@@ -83,18 +85,31 @@ fn main() {
             results.push(TestResult {
                 suite_name: suite.name.clone(),
                 case_name: case.name,
+                status,
                 status_icon,
                 time: case.time.unwrap_or(0.0),
             });
         }
     }
 
-    results.sort_by(|a, b| b.time.partial_cmp(&a.time).unwrap_or(std::cmp::Ordering::Equal));
+    // Sort by status priority (failures first, then flaky, then slow, then the rest)
+    results.sort_by(|a, b| {
+        let status_ord = (a.status as u8).cmp(&(b.status as u8));
+        if status_ord != std::cmp::Ordering::Equal {
+            return status_ord;
+        }
+        b.time
+            .partial_cmp(&a.time)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     println!("| Test Suite | Test | Status | Time |");
     println!("|---|---|---|---|");
 
     for result in results {
-        println!("| {} | {} | {} | {:.3}s |", result.suite_name, result.case_name, result.status_icon, result.time);
+        println!(
+            "| {} | {} | {} | {:.3}s |",
+            result.suite_name, result.case_name, result.status_icon, result.time
+        );
     }
 }
