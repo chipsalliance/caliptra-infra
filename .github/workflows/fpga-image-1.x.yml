@@ -1,9 +1,42 @@
 name: Build FPGA SD image for caliptra-1.x
 
 on:
+  pull_request:
+    paths:
+      - "fpga-1x/ci-tools/fpga-image/**"
+
+  push:
+    branches: ["main"]
+    paths:
+      - "fpga-1x/ci-tools/fpga-image/**"
+
+  schedule:
+    # 5:13 AM PST tuesday, thursday
+    - cron: '13 13 * * 2,4'
+
+  workflow_dispatch:
+
 jobs:
   build_sd_image:
-    name: Build 1.x FPGA images
-    uses: chipsalliance/caliptra-sw/.github/workflows/fpga-image.yml@caliptra-1.x
-    with:
-      branch: "caliptra-1.x"
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5
+
+      - name: Install pre-requisites
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install debootstrap binfmt-support qemu-user-static u-boot-tools gcc-aarch64-linux-gnu jq squashfs-tools
+          rustup target add aarch64-unknown-linux-gnu
+
+      - name: Build SD image
+        run: |
+          cd fpga-1x/ci-tools/fpga-image
+          sudo bash build.sh
+
+      - name: 'Upload image as artifact'
+        uses: actions/upload-artifact@v4
+        with:
+          name: caliptra-fpga-image
+          path: fpga-1x/ci-tools/fpga-image/out/image.img
+          retention-days: 90
