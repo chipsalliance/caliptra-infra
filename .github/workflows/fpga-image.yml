@@ -2,6 +2,8 @@
 name: Build FPGA SD image
 
 on:
+  workflow_dispatch:
+
 jobs:
   build_kernel:
     runs-on: [e2-standard-32, vck190-tools]
@@ -24,7 +26,7 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
-        with: 
+        with:
           ref: ${{ inputs.branch }}
 
       - name: Cache Kernel output
@@ -107,7 +109,7 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
-        with: 
+        with:
           ref: ${{ inputs.branch }}
 
       - name: 'Download kernel artifact'
@@ -125,7 +127,7 @@ jobs:
       - name: Install pre-requisites
         run: |
           sudo apt-get update
-          sudo apt-get -y install debootstrap binfmt-support qemu-user-static u-boot-tools gcc-aarch64-linux-gnu 
+          sudo apt-get -y install debootstrap binfmt-support qemu-user-static u-boot-tools gcc-aarch64-linux-gnu
           rustup target add aarch64-unknown-linux-gnu
           cargo +1.88 install cross --git https://github.com/cross-rs/cross --root /tmp/cross
 
