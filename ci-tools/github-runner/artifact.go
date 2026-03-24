@@ -22,8 +22,10 @@ func findArtifact(artifacts *github.ArtifactList, name string) (*github.Artifact
 	return nil, errors.New("could not find artifact")
 }
 
-func DownloadArtifact(ctx context.Context, client *github.Client, workflowFilename string, artifactName string, branch string) error {
-	repo := "caliptra-sw"
+func DownloadArtifact(ctx context.Context, client *github.Client, workflowFilename string, artifactName string, branch string, repo string) error {
+	if repo == "" {
+		repo = "caliptra-sw"
+	}
 	workflow, _, err := client.Actions.GetWorkflowByFileName(ctx, githubOrg, repo, workflowFilename)
 	if err != nil {
 		return err
