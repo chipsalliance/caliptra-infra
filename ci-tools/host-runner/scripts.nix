@@ -22,7 +22,7 @@
     mkdir -p ci-images
     pushd ci-images
 
-    ${rtool}/bin/rtool download_artifact 379559 40993215 fpga-image-1.x.yml caliptra-fpga-image main > caliptra-fpga-image.zip
+    ${rtool}/bin/rtool download_artifact 379559 40993215 fpga-image-1.x.yml caliptra-fpga-image main caliptra-infra > caliptra-fpga-image.zip
     ${pkgs.unzip}/bin/unzip caliptra-fpga-image.zip
     DATE_SUFFIX=$(date +%Y%m%d)
     (mv zcu104.img zcu104.img.old."$DATE_SUFFIX" || true)
