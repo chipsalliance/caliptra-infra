@@ -71,56 +71,46 @@ func GitHubRegisterRunner(ctx context.Context, client *github.Client, labels []s
 	}, nil
 }
 
-func isMachineType(label string) bool {
-	switch label {
-	case "e2-standard-2":
-		return true
-	case "e2-standard-4":
-		return true
-	case "e2-standard-8":
-		return true
-	case "e2-standard-16":
-		return true
-	case "e2-standard-32":
-		return true
-	case "e2-highcpu-2":
-		return true
-	case "e2-highcpu-4":
-		return true
-	case "e2-highcpu-8":
-		return true
-	case "e2-highcpu-16":
-		return true
-	case "e2-highcpu-32":
-		return true
-	case "n2d-highcpu-64":
-		return true
-	case "n2d-highcpu-80":
-		return true
-	case "n2d-highcpu-96":
-		return true
-
-	default:
-		return false
+func getMachineType(label string) string {
+	baseMachineTypes := []string{
+		"e2-standard-2", "e2-standard-4", "e2-standard-8", "e2-standard-16", "e2-standard-32",
+		"e2-highcpu-2", "e2-highcpu-4", "e2-highcpu-8", "e2-highcpu-16", "e2-highcpu-32",
+		"n2d-highcpu-64", "n2d-highcpu-80", "n2d-highcpu-96",
 	}
+	for _, bt := range baseMachineTypes {
+		if label == bt || strings.HasPrefix(label, bt+"-") {
+			return bt
+		}
+	}
+	return ""
 }
 
 type MachineInfo struct {
 	machineType    string
 	hasFpgaTools   bool
 	hasVck190Tools bool
-	hasBigDisk bool
+	hasBigDisk     bool
 }
 
 func MachineInfoFromLabels(labels []string) (MachineInfo, error) {
 	result := MachineInfo{}
 
 	for _, item := range labels {
-		if isMachineType(item) {
-			if result.machineType != "" {
-				return result, fmt.Errorf("multiple machine type labels: %v, %v", result.machineType, item)
+		mt := getMachineType(item)
+		if mt != "" {
+			if result.machineType != "" && result.machineType != mt {
+				return result, fmt.Errorf("multiple machine type labels: %v, %v", result.machineType, mt)
 			}
-			result.machineType = item
+			result.machineType = mt
+			if strings.Contains(item, "-fpga-tools") {
+				result.hasFpgaTools = true
+			}
+			if strings.Contains(item, "-vck190-tools") {
+				result.hasVck190Tools = true
+			}
+			if strings.Contains(item, "-big-disk") {
+				result.hasBigDisk = true
+			}
 		}
 		if item == "fpga-tools" {
 			result.hasFpgaTools = true
@@ -156,8 +146,14 @@ func Launch(ctx context.Context, client *github.Client, labels []string) error {
 		return err
 	}
 
-    var disks []*computepb.AttachedDisk
-    disks = singleDisk("global/images/family/github-runner", 32)
+	bootDiskSize := int64(32)
+	if machineInfo.hasVck190Tools {
+		bootDiskSize = 128
+	} else if machineInfo.hasBigDisk {
+		bootDiskSize = 64
+	}
+
+	disks := singleDisk("global/images/family/github-runner", bootDiskSize)
 
 	if machineInfo.hasFpgaTools {
 		disks = append(disks, &computepb.AttachedDisk{
@@ -166,14 +162,10 @@ func Launch(ctx context.Context, client *github.Client, labels []string) error {
 		})
 	}
 	if machineInfo.hasVck190Tools {
-        disks = singleDisk("global/images/family/github-runner", 128)
 		disks = append(disks, &computepb.AttachedDisk{
 			Source: proto.String(fmt.Sprintf("zones/%s/disks/vck190-tools", gcpZone)),
 			Mode:   proto.String("READ_ONLY"),
 		})
-	}
-	if machineInfo.hasBigDisk {
-        disks = singleDisk("global/images/family/github-runner", 64)
 	}
 
 	script := strings.ReplaceAll(launchStartupScript, "${JITCONFIG}", runner.JitConfig)
