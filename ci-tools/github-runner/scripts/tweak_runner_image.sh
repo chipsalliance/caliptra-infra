@@ -30,7 +30,7 @@ set -x
     apt-get -y install build-essential autoconf automake libtool manpages-dev flex \
         bison libfl2 libfl-dev help2man git gcc-riscv64-unknown-elf \
         binutils-riscv64-unknown-elf pkg-config libssl-dev jq libtinfo5 \
-        gcc-aarch64-linux-gnu squashfs-tools
+        gcc-aarch64-linux-gnu squashfs-tools podman
 
     # Disable unattended upgrades, as these can interfere with jobs. This image
     # is regenerated once a week so the security risk is minimal.
