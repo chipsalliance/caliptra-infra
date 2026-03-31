@@ -1,6 +1,6 @@
 module caliptra.org/github-runner
 
-go 1.23.6
+go 1.26.1
 
 require github.com/GoogleCloudPlatform/functions-framework-go v1.9.2
 
