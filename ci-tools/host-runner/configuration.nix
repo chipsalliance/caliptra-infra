@@ -100,6 +100,8 @@ in
     scripts.download-image
     scripts.usb-setup
     scripts."restart-all-fpga-jobs"
+    scripts."stop-all-fpga-jobs"
+    scripts."resume-all-fpga-jobs"
   ];
 
   programs.zsh.enable = true;

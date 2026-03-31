@@ -139,4 +139,28 @@
 
     echo "Restart command sent."
   '';
+
+  stop-all-fpga-jobs = pkgs.writeShellScriptBin "stop-all-fpga-jobs" ''
+    #!${pkgs.bash}/bin/bash
+    set -euo pipefail
+
+    STOP_FILE="/home/${user}/.fpga-boss-stop"
+    echo "Creating stop file at $STOP_FILE"
+    touch "$STOP_FILE"
+    echo "fpga-boss instances will exit gracefully after their current job completes."
+  '';
+
+  resume-all-fpga-jobs = pkgs.writeShellScriptBin "resume-all-fpga-jobs" ''
+    #!${pkgs.bash}/bin/bash
+    set -euo pipefail
+
+    STOP_FILE="/home/${user}/.fpga-boss-stop"
+    if [[ -f "$STOP_FILE" ]]; then
+      echo "Removing stop file at $STOP_FILE"
+      rm "$STOP_FILE"
+    fi
+
+    # Trigger restart to ensure they start up again.
+    ${pkgs.bash}/bin/bash "${restart-all-fpga-jobs}/bin/restart-all-fpga-jobs"
+  '';
 }

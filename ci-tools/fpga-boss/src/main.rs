@@ -396,6 +396,14 @@ fn main_impl() -> anyhow::Result<()> {
             let mut fpga = get_fpga_ftdi()?;
             let sd_dev_path = sd_mux.get_sd_dev_path()?;
             'outer: loop {
+                if let Some(home_dir) = std::env::var_os("HOME") {
+                    let stop_file = Path::new(&home_dir).join(".fpga-boss-stop");
+                    if stop_file.exists() {
+                        println!("Stop file {:?} found, exiting gracefully", stop_file);
+                        break 'outer;
+                    }
+                }
+
                 println!("Putting FPGA into reset");
                 fpga.set_reset(FpgaReset::Reset)?;
                 sd_mux.set_target(SdMuxTarget::Host)?;
