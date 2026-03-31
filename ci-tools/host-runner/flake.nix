@@ -64,6 +64,20 @@
           ./hostrunners/kir-2.nix
         ];
       };
+      nixosConfigurations."caliptra-hostrunner3" = nixpkgs.lib.nixosSystem {
+        system = "aarch64-linux";
+        specialArgs = {
+          identifier = "3";
+          user = "hostrunner";
+          rtool = rtool-bin;
+          fpga-boss = fpga-boss-bin;
+          ssh_keys = keys.googler_keys;
+        };
+        modules = [
+          ./configuration.nix
+          ./hostrunners/kir-3.nix
+        ];
+      };
       nixosConfigurations."caliptra-hostrunner-bo0" = nixpkgs.lib.nixosSystem {
         system = "aarch64-linux";
         specialArgs = {
