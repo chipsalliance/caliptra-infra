@@ -15,7 +15,7 @@ use std::{env, fmt, path::PathBuf};
 use serde::{Deserialize, Serialize};
 
 // Re-exports
-pub use builder::{ArtifactBuilder, CaliptraFirmwareBuilder};
+pub use builder::ArtifactBuilder;
 pub use cache::{Cache, FsCache};
 pub use cache_gha::GithubActionCache;
 pub use git::CommitInfo;

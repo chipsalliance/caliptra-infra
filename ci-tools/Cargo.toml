@@ -8,13 +8,8 @@ members = [
 ]
 
 [workspace.dependencies]
-caliptra-builder = { git = "https://github.com/chipsalliance/caliptra-sw.git", package = "caliptra-builder", rev = "dcdb3932812f42c7c93fe9aa796ecc1fe60ca2df" }
 serde = "1"
 serde_json = "1"
 tinytemplate = "1.1"
 openssl = { version = "0.10", features = ["vendored"] }
-
-# Use the forked openssl crate with ML-DSA support required by caliptra-sw
-[patch.crates-io]
-openssl = { git = "https://github.com/clundin25/rust-openssl.git", rev = "4ada1c1d7c264e052e7bb71ecddbd196a5c2a0c7" }
 

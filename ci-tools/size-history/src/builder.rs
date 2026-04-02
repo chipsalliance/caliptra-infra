@@ -1,51 +1,42 @@
 // Licensed under the Apache-2.0 license
 
-use std::{io, path::Path};
-
-use caliptra_builder::{elf_size, FwId};
+use std::path::Path;
 
 /// Trait for building artifacts and measuring their size.
+///
+/// Implement this trait for each type of artifact you want to track.
+/// Each implementation is responsible for building the artifact and
+/// returning its size in bytes.
+///
+/// # Example
+///
+/// ```ignore
+/// use caliptra_size_history::ArtifactBuilder;
+/// use std::path::Path;
+///
+/// struct MyFirmwareBuilder {
+///     name: String,
+/// }
+///
+/// impl ArtifactBuilder for MyFirmwareBuilder {
+///     fn name(&self) -> &str {
+///         &self.name
+///     }
+///
+///     fn build_and_measure(&self, workspace: &Path) -> Option<u64> {
+///         // Build your artifact and return its size
+///         Some(1337)
+///     }
+/// }
+/// ```
 pub trait ArtifactBuilder {
     /// Unique name for this artifact (used in reports and cache keys).
     fn name(&self) -> &str;
 
-    /// Build the artifact and return its size.
-    /// Returns None if build fails (graceful degradation).
+    /// Build the artifact and return its size in bytes.
+    ///
+    /// Returns `None` if the build fails (graceful degradation).
+    /// The implementation should handle errors internally and log them
+    /// as appropriate.
     fn build_and_measure(&self, workspace: &Path) -> Option<u64>;
-}
-
-/// Builds Caliptra firmware using caliptra_builder and measures ELF size.
-pub struct CaliptraFirmwareBuilder {
-    name: String,
-    fwid: FwId<'static>,
-}
-
-impl CaliptraFirmwareBuilder {
-    pub fn new(name: impl Into<String>, fwid: FwId<'static>) -> Self {
-        Self {
-            name: name.into(),
-            fwid,
-        }
-    }
-
-    fn build_elf(&self, workspace: &Path) -> io::Result<u64> {
-        let elf_bytes = caliptra_builder::build_firmware_elf_uncached(Some(workspace), &self.fwid)?;
-        elf_size(&elf_bytes)
-    }
-}
-
-impl ArtifactBuilder for CaliptraFirmwareBuilder {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn build_and_measure(&self, workspace: &Path) -> Option<u64> {
-        match self.build_elf(workspace) {
-            Ok(size) => Some(size),
-            Err(err) => {
-                println!("Error building {}: {err}", self.name);
-                None
-            }
-        }
-    }
 }
