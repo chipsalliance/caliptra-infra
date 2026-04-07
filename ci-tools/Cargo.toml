@@ -1,0 +1,15 @@
+# Licensed under the Apache-2.0 license
+
+[workspace]
+resolver = "2"
+
+members = [
+  "size-history",
+]
+
+[workspace.dependencies]
+serde = "1"
+serde_json = "1"
+tinytemplate = "1.1"
+openssl = { version = "0.10", features = ["vendored"] }
+
