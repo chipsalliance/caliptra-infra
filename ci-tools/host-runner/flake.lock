@@ -108,11 +108,11 @@
     },
     "nixpkgs_4": {
       "locked": {
-        "lastModified": 1751011381,
-        "narHash": "sha256-krGXKxvkBhnrSC/kGBmg5MyupUUT5R6IBCLEzx9jhMM=",
+        "lastModified": 1775036866,
+        "narHash": "sha256-ZojAnPuCdy657PbTq5V0Y+AHKhZAIwSIT2cb8UgAz/U=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "30e2e2857ba47844aa71991daa6ed1fc678bcbb7",
+        "rev": "6201e203d09599479a3b3450ed24fa81537ebc4e",
         "type": "github"
       },
       "original": {
@@ -136,11 +136,11 @@
       },
       "locked": {
         "dir": "ci-tools/github-runner",
-        "lastModified": 1765928865,
-        "narHash": "sha256-v0W+PZnU4z0swENUYusdU6sV+cYkZ8l0sorYy2Uw0ag=",
+        "lastModified": 1775597051,
+        "narHash": "sha256-75Fgl8U5MqAteLuQSv9htqOeJvq5PZs+qX44J80Q3d4=",
         "owner": "chipsalliance",
         "repo": "caliptra-infra",
-        "rev": "68cca2bd25bf1d574f73eca6396bf1c6dc6dfac3",
+        "rev": "0d6f21b6d9d05e1fa5fac4c02a3db6352e479633",
         "type": "github"
       },
       "original": {

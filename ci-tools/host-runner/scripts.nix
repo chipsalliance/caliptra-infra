@@ -5,7 +5,7 @@
   user,
   ...
 }:
-{
+rec {
   download-image = pkgs.writeShellScriptBin "download-image" ''
     export GCP_ZONE="us-central1"
     export GITHUB_ORG="chipsalliance"
