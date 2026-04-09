@@ -5,7 +5,7 @@ use std::fmt::Write;
 use serde::Deserialize;
 use serde_xml_rs as serde_xml;
 
-use crate::TestCaseStatus;
+use crate::test::TestCaseStatus;
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct TestSuites {

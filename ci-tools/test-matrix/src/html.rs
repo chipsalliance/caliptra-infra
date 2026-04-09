@@ -7,7 +7,7 @@ use serde::Serialize;
 use std::fmt::Debug;
 use tinytemplate::{format_unescaped, TinyTemplate};
 
-use crate::{RunInfo, TestMatrix};
+use crate::test::{RunInfo, TestMatrix};
 
 // These types are exposed to the HTML template:
 
