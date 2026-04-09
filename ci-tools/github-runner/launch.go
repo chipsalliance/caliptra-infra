@@ -54,6 +54,7 @@ func GitHubRegisterRunner(ctx context.Context, client *github.Client, labels []s
 	if name == "" {
 		name = fmt.Sprintf("gce-github-runner-%v", randId())
 	}
+	log.Printf("Registering JIT runner with name %q and labels %v\n", name, labels)
 	jitConfig, response, err := client.Actions.GenerateOrgJITConfig(ctx, githubOrg, &github.GenerateJITConfigRequest{
 		Name:          name,
 		RunnerGroupID: 1,
@@ -61,10 +62,11 @@ func GitHubRegisterRunner(ctx context.Context, client *github.Client, labels []s
 	})
 	if err != nil {
 		if response != nil {
-			log.Printf("%+v\n", response.Body)
+			log.Printf("Github API error response: %+v\n", response.Body)
 		}
-		return RunnerInfo{}, err
+		return RunnerInfo{}, fmt.Errorf("failed to generate JIT config: %w", err)
 	}
+	log.Printf("Successfully generated JIT config for runner %q\n", name)
 	return RunnerInfo{
 		Name:      name,
 		JitConfig: jitConfig.GetEncodedJITConfig(),
@@ -135,6 +137,8 @@ func Launch(ctx context.Context, client *github.Client, labels []string) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("Launching runner with machine type %q (FPGA: %v, VCK190: %v, BigDisk: %v)\n",
+		machineInfo.machineType, machineInfo.hasFpgaTools, machineInfo.hasVck190Tools, machineInfo.hasBigDisk)
 
 	runner, err := GitHubRegisterRunner(ctx, client, labels, "")
 	if err != nil {

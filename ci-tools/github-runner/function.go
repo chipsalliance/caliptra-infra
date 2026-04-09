@@ -96,29 +96,36 @@ func handleLaunch(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	switch event := event.(type) {
 	case *github.WorkflowJobEvent:
+		job := event.GetWorkflowJob()
 		if event.GetAction() == "queued" {
-			labels := event.GetWorkflowJob().Labels
+			labels := job.Labels
+			log.Printf("Received 'queued' event for Job ID: %v, Name: %q, Labels: %v\n", job.GetID(), job.GetName(), labels)
 			_, err := MachineInfoFromLabels(labels)
 			if err != nil {
-				log.Printf("Job doesn't have a label we care about: %v\n", err)
+				log.Printf("Job %v (%q) doesn't have a label we care about: %v\n", job.GetID(), job.GetName(), err)
 				return
 			}
 			installation := event.GetInstallation()
-			log.Printf("Launching runner job %v\n", installation)
+			log.Printf("Launching runner for job %v (%q), installation: %v\n", job.GetID(), job.GetName(), installation.GetID())
 			client, err := GithubClient(appID, installation.GetID())
 			if err != nil {
-				log.Printf("Error: %v\n", err)
+				log.Printf("Error creating Github client for job %v: %v\n", job.GetID(), err)
 				http.Error(w, "", http.StatusInternalServerError)
 				return
 			}
 
 			err = Launch(ctx, client, labels)
 			if err != nil {
-				log.Printf("Error: %v\n", err)
+				log.Printf("Error launching runner for job %v: %v\n", job.GetID(), err)
 				http.Error(w, "", http.StatusInternalServerError)
 				return
 			}
+			log.Printf("Successfully initiated launch for job %v\n", job.GetID())
+		} else {
+			log.Printf("Ignoring event action %q for Job ID: %v\n", event.GetAction(), job.GetID())
 		}
+	default:
+		log.Printf("Received unhandled event type: %T\n", event)
 	}
 }
 func handleBuildImage(w http.ResponseWriter, r *http.Request) {
@@ -163,30 +170,36 @@ func metadata(kv map[string]string) *computepb.Metadata {
 }
 
 func createInstanceAndStart(ctx context.Context, instances *compute.InstancesClient, req *computepb.InsertInstanceRequest) error {
-	log.Printf("Creating VM instance %v\n", req.GetInstanceResource().GetName())
+	name := req.GetInstanceResource().GetName()
+	log.Printf("Creating VM instance %v\n", name)
 	op, err := instances.Insert(ctx, req)
 	if err != nil {
+		log.Printf("Failed to insert VM instance %v: %v\n", name, err)
 		return err
 	}
 	err = op.Wait(ctx)
 	if err != nil {
+		log.Printf("Error waiting for VM instance %v insertion: %v\n", name, err)
 		return err
 	}
-	log.Printf("Starting VM instance %v\n", req.GetInstanceResource().GetName())
+	log.Printf("Starting VM instance %v\n", name)
 	op, err = instances.Start(ctx, &computepb.StartInstanceRequest{
 		Project:  req.Project,
 		Zone:     req.Zone,
-		Instance: *req.InstanceResource.Name,
+		Instance: name,
 	})
 	if err != nil {
-		instanceDelete(ctx, instances, req.InstanceResource.GetName())
+		log.Printf("Failed to start VM instance %v: %v\n", name, err)
+		instanceDelete(ctx, instances, name)
 		return err
 	}
 	err = op.Wait(ctx)
 	if err != nil {
-		instanceDelete(ctx, instances, req.InstanceResource.GetName())
+		log.Printf("Error waiting for VM instance %v to start: %v\n", name, err)
+		instanceDelete(ctx, instances, name)
 		return err
 	}
+	log.Printf("VM instance %v is running\n", name)
 	return nil
 }
 

@@ -4,6 +4,7 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sort"
 	"time"
@@ -47,8 +48,28 @@ func cleanupInstances(ctx context.Context) error {
 		}
 		instanceTooOld := creationTime.Add(maxVmDuration).Before(time.Now())
 
-		if instance.GetStatus() == "TERMINATED" || instanceTooOld {
-			log.Printf("Deleting instance %v", instance.GetName())
+		shouldDelete := instanceTooOld || (is_runner && instance.GetStatus() == "TERMINATED")
+		if shouldDelete {
+			// Try to get guest attributes for better telemetry before deleting
+			state := "UNKNOWN"
+			if is_runner {
+				attr, err := instanceSvc.GetGuestAttributes(ctx, &computepb.GetGuestAttributesInstanceRequest{
+					Project:   gcpProject,
+					Zone:      gcpZone,
+					Instance:  instance.GetName(),
+					QueryPath: proto.String("caliptra-github-ci/"),
+				})
+				if err == nil {
+					items := attr.GetQueryValue().GetItems()
+					runnerState := findItem(items, "runner-state")
+					runnerError := findItem(items, "runner-error")
+					state = fmt.Sprintf("runner-state=%v, runner-error=%v", runnerState, runnerError)
+				} else {
+					state = fmt.Sprintf("attributes-unavailable: %v", err)
+				}
+			}
+
+			log.Printf("Deleting instance %v (status=%v, tooOld=%v, %v)", instance.GetName(), instance.GetStatus(), instanceTooOld, state)
 			instanceSvc.Delete(ctx, &computepb.DeleteInstanceRequest{
 				Zone:     gcpZone,
 				Project:  gcpProject,
