@@ -154,7 +154,7 @@ func Launch(ctx context.Context, client *github.Client, labels []string) error {
 	if machineInfo.hasVck190Tools {
 		bootDiskSize = 128
 	} else if machineInfo.hasBigDisk {
-		bootDiskSize = 64
+		bootDiskSize = 128
 	}
 
 	disks := singleDisk("global/images/family/github-runner", bootDiskSize)
