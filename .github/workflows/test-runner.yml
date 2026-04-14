@@ -1,0 +1,19 @@
+name: Test self-hosted runner
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  build_sw:
+    runs-on: ['cw-builder']
+    # runs-on: ['self-hosted', 'Linux', 'cw-builder']
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run Vivado
+        run: |
+          cd hw/fpga
+          /app/buildVivado.sh
+
