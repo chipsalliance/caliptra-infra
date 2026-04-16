@@ -54,6 +54,9 @@ resource "google_service_account" "bitstream_writer" {
   account_id = "bitstream-writer"
 }
 
+resource "google_service_account" "ai_runner" {
+  account_id = "ai-runner"
+}
 // Delete the cruft
 resource "google_project_default_service_accounts" "delete_default_service_accounts" {
   project = var.project_id
@@ -388,6 +391,19 @@ resource "google_secret_manager_secret_iam_binding" "github_private_key" {
     "serviceAccount:${google_service_account.vm_creator.email}",
   ]
 }
+
+resource "google_project_iam_member" "ai_runner_vertex_ai" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.ai_runner.email}"
+}
+
+resource "google_service_account_iam_member" "vm_creator_as_ai_runner" {
+  service_account_id = google_service_account.ai_runner.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.vm_creator.email}"
+}
+
 resource "google_cloudfunctions2_function_iam_binding" "runner_cleanup_invoker" {
   location       = google_cloudfunctions2_function.runner_cleanup.location
   cloud_function = google_cloudfunctions2_function.runner_cleanup.name
