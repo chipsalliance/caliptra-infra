@@ -1,3 +1,4 @@
 ci-tools/host-runner/secrets/
 **/.terraform.lock.hcl
 **/target
+**/*.tar.gz
