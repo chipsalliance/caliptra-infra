@@ -50,6 +50,10 @@ resource "google_service_account" "vm_maintenance_scheduler" {
 resource "google_service_account" "vm_creator" {
   account_id = "vm-creator"
 }
+resource "google_service_account" "bitstream_writer" {
+  account_id = "bitstream-writer"
+}
+
 // Delete the cruft
 resource "google_project_default_service_accounts" "delete_default_service_accounts" {
   project = var.project_id
@@ -90,6 +94,15 @@ resource "google_storage_bucket_iam_binding" "bitstreams_public_reader" {
   role   = "roles/storage.objectViewer"
   members = [
     "allUsers",
+    "serviceAccount:${google_service_account.bitstream_writer.email}",
+  ]
+}
+
+resource "google_storage_bucket_iam_binding" "bitstreams_writer_creator" {
+  bucket = google_storage_bucket.bitstreams.name
+  role   = "roles/storage.objectCreator"
+  members = [
+    "serviceAccount:${google_service_account.bitstream_writer.email}",
   ]
 }
 
