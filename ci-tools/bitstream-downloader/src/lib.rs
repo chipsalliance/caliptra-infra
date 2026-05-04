@@ -228,11 +228,24 @@ async fn upload_component_to_gcs(path: &Path, bucket: &str, commit_hash: &str) -
     upload_content_to_gcs(file, bucket, &file_name, commit_hash).await
 }
 
+async fn find_file_with_extension(dir: &Path, extension: &str) -> Result<Option<PathBuf>> {
+    let mut match_path = None;
+    let mut dir = fs::read_dir(dir).await?;
+    while let Some(entry) = dir.next_entry().await? {
+        let path = entry.path();
+        if path.is_file() && path.extension().map_or(false, |ext| ext == extension) {
+            if match_path.is_some() {
+                anyhow::bail!("Found multiple files with extension .{} in tarball", extension);
+            }
+            match_path = Some(path);
+        }
+    }
+    Ok(match_path)
+}
+
 pub async fn upload_manifest_bundle(
     bundle_path: &Path,
     gcs_bucket: &str,
-    xsa_path: Option<PathBuf>,
-    pdi_path: Option<PathBuf>,
 ) -> Result<()> {
     println!("Uploading manifest bundle from: {}", bundle_path.display());
 
@@ -262,14 +275,22 @@ pub async fn upload_manifest_bundle(
     let manifest_path = tmp_dir.path().join("manifest.toml");
     let mut manifest = Manifest::load_from_path(&manifest_path).await?;
 
-    if let Some(xsa_file) = xsa_path.filter(|p| p.exists()) {
-        manifest.xsa_url =
-            Some(upload_component_to_gcs(&xsa_file, gcs_bucket, &manifest.commit_hash).await?);
+    let xsa_file = find_file_with_extension(tmp_dir.path(), "xsa").await?;
+    let pdi_file = find_file_with_extension(tmp_dir.path(), "pdi").await?;
+
+    if let Some(file) = &xsa_file {
+        println!("Found XSA file in tarball: {}", file.display());
+    }
+    if let Some(file) = &pdi_file {
+        println!("Found PDI file in tarball: {}", file.display());
     }
 
-    if let Some(pdi_file) = pdi_path.filter(|p| p.exists()) {
-        manifest.pdi_url =
-            Some(upload_component_to_gcs(&pdi_file, gcs_bucket, &manifest.commit_hash).await?);
+    if let Some(file) = xsa_file {
+        manifest.xsa_url = Some(upload_component_to_gcs(&file, gcs_bucket, &manifest.commit_hash).await?);
+    }
+
+    if let Some(file) = pdi_file {
+        manifest.pdi_url = Some(upload_component_to_gcs(&file, gcs_bucket, &manifest.commit_hash).await?);
     }
 
     manifest.name = Some(format!("{}-bitstream", manifest.caliptra_variant));
