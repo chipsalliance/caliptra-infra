@@ -26,7 +26,8 @@ pub struct Manifest {
     pub caliptra_variant: String,
     pub date: String,
     pub commit_hash: String,
-    pub caliptra_ss_commit: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub caliptra_ss_commit: Option<String>,
     pub job_id: String,
     pub segmented: bool,
     #[serde(skip_serializing_if = "Option::is_none")]

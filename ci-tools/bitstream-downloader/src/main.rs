@@ -55,7 +55,7 @@ struct BundleManifestArgs {
 
     /// Caliptra SS commit hash
     #[arg(long)]
-    caliptra_ss_commit: String,
+    caliptra_ss_commit: Option<String>,
 
     /// GitHub Actions job ID
     #[arg(long)]
