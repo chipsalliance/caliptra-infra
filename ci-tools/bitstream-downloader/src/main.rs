@@ -92,13 +92,7 @@ struct UploadBundleArgs {
     #[arg(long = "gcs-bucket", value_name = "BUCKET")]
     gcs_bucket: String,
 
-    /// Path to the XSA file (optional)
-    #[arg(long)]
-    xsa_file: Option<PathBuf>,
 
-    /// Path to the PDI file (optional)
-    #[arg(long)]
-    pdi_file: Option<PathBuf>,
 }
 
 #[tokio::main]
@@ -141,8 +135,6 @@ async fn main() -> Result<()> {
             caliptra_bitstream_downloader::upload_manifest_bundle(
                 &args.bundle_path,
                 &args.gcs_bucket,
-                args.xsa_file,
-                args.pdi_file,
             )
             .await?;
         }
