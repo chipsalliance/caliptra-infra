@@ -106,6 +106,26 @@ resource "google_storage_bucket_iam_binding" "bitstreams_writer_creator" {
   ]
 }
 
+//////////////// Reports Bucket
+
+resource "google_storage_bucket" "caliptra_reports" {
+  project                     = var.project_id
+  name                        = "${var.project_id}-caliptra-reports"
+  location                    = "US"
+  force_destroy               = false
+  uniform_bucket_level_access = true
+  depends_on = [google_project_service.enabled_apis]
+}
+
+resource "google_storage_bucket_iam_binding" "reports_reader" {
+  bucket = google_storage_bucket.caliptra_reports.name
+  role   = "roles/storage.objectViewer"
+  members = [
+    "user:clundin@google.com",
+    "user:ttrippel@google.com",
+  ]
+}
+
 //////////////// Secrets
 
 // To avoid leaking the secret contents in tfstate, the secret "version"
