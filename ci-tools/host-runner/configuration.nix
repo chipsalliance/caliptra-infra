@@ -33,6 +33,9 @@ in
 
   boot.loader.grub.enable = false;
   boot.loader.generic-extlinux-compatible.enable = true;
+  boot.kernelParams = [
+    "console=ttyS1,115200n8"
+  ];
 
   # we need the sg module loaded for usbsdmux, see
   # https://github.com/linux-automation/usbsdmux?tab=readme-ov-file#troubleshooting
