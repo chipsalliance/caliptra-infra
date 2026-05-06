@@ -92,25 +92,33 @@ type MachineInfo struct {
 	hasFpgaTools   bool
 	hasVck190Tools bool
 	hasBigDisk     bool
+	isAI           bool
 }
 
 func MachineInfoFromLabels(labels []string) (MachineInfo, error) {
 	result := MachineInfo{}
 
 	for _, item := range labels {
-		mt := getMachineType(item)
+		label := item
+		isAI := false
+		if strings.HasSuffix(label, "-AI") {
+			label = strings.TrimSuffix(label, "-AI")
+			isAI = true
+		}
+		mt := getMachineType(label)
 		if mt != "" {
 			if result.machineType != "" && result.machineType != mt {
 				return result, fmt.Errorf("multiple machine type labels: %v, %v", result.machineType, mt)
 			}
 			result.machineType = mt
-			if strings.Contains(item, "-fpga-tools") {
+			result.isAI = isAI
+			if strings.Contains(label, "-fpga-tools") {
 				result.hasFpgaTools = true
 			}
-			if strings.Contains(item, "-vck190-tools") {
+			if strings.Contains(label, "-vck190-tools") {
 				result.hasVck190Tools = true
 			}
-			if strings.Contains(item, "-big-disk") {
+			if strings.Contains(label, "-big-disk") {
 				result.hasBigDisk = true
 			}
 		}
@@ -174,22 +182,35 @@ func Launch(ctx context.Context, client *github.Client, labels []string) error {
 
 	script := strings.ReplaceAll(launchStartupScript, "${JITCONFIG}", runner.JitConfig)
 
-	return createInstanceAndStart(ctx, instances, &computepb.InsertInstanceRequest{
-		Project: gcpProject,
-		Zone:    gcpZone,
-		InstanceResource: &computepb.Instance{
-			Name:        proto.String(runner.Name),
-			Disks:       disks,
-			MachineType: proto.String(fmt.Sprintf("zones/%v/machineTypes/%v", gcpZone, machineInfo.machineType)),
-			Metadata: metadata(map[string]string{
-				"enable-guest-attributes": "TRUE",
-				"serial-port-enable":      "TRUE",
-				"startup-script":          script,
-			}),
-			Labels: map[string]string{
-				"gce-github-runner": "",
-			},
-			NetworkInterfaces: defaultNetworks(),
+	instance := &computepb.Instance{
+		Name:        proto.String(runner.Name),
+		Disks:       disks,
+		MachineType: proto.String(fmt.Sprintf("zones/%v/machineTypes/%v", gcpZone, machineInfo.machineType)),
+		Metadata: metadata(map[string]string{
+			"enable-guest-attributes": "TRUE",
+			"serial-port-enable":      "TRUE",
+			"startup-script":          script,
+		}),
+		Labels: map[string]string{
+			"gce-github-runner": "",
 		},
+		NetworkInterfaces: defaultNetworks(),
+	}
+
+	if machineInfo.isAI {
+		instance.ServiceAccounts = []*computepb.ServiceAccount{
+			{
+				Email: proto.String(fmt.Sprintf("ai-runner@%v.iam.gserviceaccount.com", gcpProject)),
+				Scopes: []string{
+					"https://www.googleapis.com/auth/cloud-platform",
+				},
+			},
+		}
+	}
+
+	return createInstanceAndStart(ctx, instances, &computepb.InsertInstanceRequest{
+		Project:          gcpProject,
+		Zone:             gcpZone,
+		InstanceResource: instance,
 	})
 }
