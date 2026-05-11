@@ -94,7 +94,7 @@ async fn upload_content_to_gcs(
         .await?;
     let public_url = format!(
         "https://storage.googleapis.com/{}/{}",
-        response.bucket, response.name
+        bucket, response.name
     );
     println!("Uploaded {} to: {}", &object_name, public_url);
     Ok(public_url)
@@ -121,14 +121,19 @@ pub async fn download_bitstream(manifest_path: &Path) -> Result<PathBuf> {
     let response = reqwest::get(bitstream_url)
         .await
         .context("failed to make request")?;
-    let mut content = io::Cursor::new(
-        response
-            .bytes()
-            .await
-            .context("failed to read response bytes")?,
-    );
 
-    let calculated_hash_hex = calculate_hash(&mut content)?;
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_body = response.text().await.unwrap_or_default();
+        anyhow::bail!("HTTP request failed with status {}: {}", status, error_body);
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .context("failed to read response bytes")?;
+
+    let calculated_hash_hex = calculate_hash(&bytes[..])?;
 
     println!("Expected hash: {}", bitstream_hash);
     println!("Calculated hash: {}", calculated_hash_hex);
@@ -147,7 +152,9 @@ pub async fn download_bitstream(manifest_path: &Path) -> Result<PathBuf> {
     let mut file = fs::File::create(&output_path)
         .await
         .context("failed to create output file")?;
-    tokio::io::copy(&mut content, &mut file)
+    
+    use tokio::io::AsyncWriteExt;
+    file.write_all(&bytes)
         .await
         .context("failed to write output file")?;
     println!("PDI saved to: {}", output_filename);
