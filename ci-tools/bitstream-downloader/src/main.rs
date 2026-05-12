@@ -91,8 +91,6 @@ struct UploadBundleArgs {
     /// Name of the GCS bucket to upload to.
     #[arg(long = "gcs-bucket", value_name = "BUCKET")]
     gcs_bucket: String,
-
-
 }
 
 #[tokio::main]

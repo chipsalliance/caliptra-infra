@@ -152,7 +152,7 @@ pub async fn download_bitstream(manifest_path: &Path) -> Result<PathBuf> {
     let mut file = fs::File::create(&output_path)
         .await
         .context("failed to create output file")?;
-    
+
     use tokio::io::AsyncWriteExt;
     file.write_all(&bytes)
         .await
@@ -243,7 +243,10 @@ async fn find_file_with_extension(dir: &Path, extension: &str) -> Result<Option<
         let path = entry.path();
         if path.is_file() && path.extension().map_or(false, |ext| ext == extension) {
             if match_path.is_some() {
-                anyhow::bail!("Found multiple files with extension .{} in tarball", extension);
+                anyhow::bail!(
+                    "Found multiple files with extension .{} in tarball",
+                    extension
+                );
             }
             match_path = Some(path);
         }
@@ -251,10 +254,7 @@ async fn find_file_with_extension(dir: &Path, extension: &str) -> Result<Option<
     Ok(match_path)
 }
 
-pub async fn upload_manifest_bundle(
-    bundle_path: &Path,
-    gcs_bucket: &str,
-) -> Result<()> {
+pub async fn upload_manifest_bundle(bundle_path: &Path, gcs_bucket: &str) -> Result<()> {
     println!("Uploading manifest bundle from: {}", bundle_path.display());
 
     let tmp_dir = tempfile::tempdir()
@@ -294,11 +294,13 @@ pub async fn upload_manifest_bundle(
     }
 
     if let Some(file) = xsa_file {
-        manifest.xsa_url = Some(upload_component_to_gcs(&file, gcs_bucket, &manifest.commit_hash).await?);
+        manifest.xsa_url =
+            Some(upload_component_to_gcs(&file, gcs_bucket, &manifest.commit_hash).await?);
     }
 
     if let Some(file) = pdi_file {
-        manifest.pdi_url = Some(upload_component_to_gcs(&file, gcs_bucket, &manifest.commit_hash).await?);
+        manifest.pdi_url =
+            Some(upload_component_to_gcs(&file, gcs_bucket, &manifest.commit_hash).await?);
     }
 
     manifest.name = Some(format!("{}-bitstream", manifest.caliptra_variant));
