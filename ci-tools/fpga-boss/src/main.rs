@@ -395,16 +395,21 @@ fn main_impl() -> anyhow::Result<()> {
             let mut cached_token: Option<Vec<u8>> = None;
             let mut fpga = get_fpga_ftdi()?;
             let sd_dev_path = sd_mux.get_sd_dev_path()?;
+
+            let _guard = StatusGuard;
+
             'outer: loop {
                 if let Some(home_dir) = std::env::var_os("HOME") {
                     let stop_file = Path::new(&home_dir).join(".fpga-boss-stop");
                     if stop_file.exists() {
                         println!("Stop file {:?} found, exiting gracefully", stop_file);
+                        update_status("STOPPED");
                         break 'outer;
                     }
                 }
 
                 println!("Putting FPGA into reset");
+                update_status("RESETTING");
                 fpga.set_reset(FpgaReset::Reset)?;
                 sd_mux.set_target(SdMuxTarget::Host)?;
 
@@ -430,6 +435,7 @@ fn main_impl() -> anyhow::Result<()> {
                 )?;
 
                 println!("Taking FPGA out of reset");
+                update_status("BOOTING");
                 sd_mux.set_target(SdMuxTarget::Dut)?;
                 std::thread::sleep(Duration::from_millis(100));
                 fpga.set_reset(FpgaReset::Run)?;
@@ -443,6 +449,7 @@ fn main_impl() -> anyhow::Result<()> {
                 ) {
                     Err(e) if e.kind() == ErrorKind::TimedOut => {
                         eprintln!("Timed out waiting for FPGA to boot!");
+                        update_status("BOOT_TIMEOUT");
                         continue 'outer;
                     }
                     Err(e) => Err(e)?,
@@ -454,6 +461,7 @@ fn main_impl() -> anyhow::Result<()> {
                         sub_matches.get_many::<OsString>("CMD").unwrap().collect();
 
                     println!("Executing command {:?} to retrieve jitconfig", command_args);
+                    update_status("WAITING_FOR_JOB");
                     let output = std::process::Command::new(command_args[0])
                         .args(&command_args[1..])
                         .stderr(Stdio::inherit())
@@ -461,11 +469,13 @@ fn main_impl() -> anyhow::Result<()> {
                     if !output.status.success() {
                         println!("Error retrieving jitconfig: stdout:");
                         stdout().write_all(&output.stdout)?;
+                        update_status("JIT_CONFIG_ERROR");
                         continue;
                     }
                     cached_token = Some(output.stdout);
                 }
 
+                update_status("REGISTERING");
                 uart_tx.write_all(b"runner-jitconfig ")?;
                 uart_tx.write_all(
                     &cached_token
@@ -482,6 +492,7 @@ fn main_impl() -> anyhow::Result<()> {
                 ) {
                     Err(e) if e.kind() == ErrorKind::TimedOut => {
                         eprintln!("Timed out waiting for FPGA to connect to Github!");
+                        update_status("GITHUB_CONNECT_TIMEOUT");
                         continue 'outer;
                     }
                     Err(e) => Err(e)?,
@@ -492,10 +503,12 @@ fn main_impl() -> anyhow::Result<()> {
 
                 // The period of time we wait to receive a job is undefined so a timeout is not
                 // appropriate.
+                update_status("IDLE");
                 log_uart_until(&mut uart_lines, "Running job", active_runner_error_checks)?;
 
                 // Now the job is started, so we want to enforce a timeout with enough time for the
                 // job to complete.
+                update_status("BUSY");
                 match log_uart_until_with_timeout(
                     &mut uart_lines,
                     "3297327285280f1ffb8b57222e0a5033 --- ACTION IS COMPLETE",
@@ -503,14 +516,45 @@ fn main_impl() -> anyhow::Result<()> {
                 ) {
                     Err(e) if e.kind() == ErrorKind::TimedOut => {
                         eprintln!("Timed out waiting for FPGA to complete job!");
+                        update_status("JOB_TIMEOUT");
                         continue 'outer;
                     }
                     Err(e) => Err(e)?,
                     _ => (),
                 }
             }
+            update_status("STOPPED");
         }
         _ => unreachable!(),
     }
     Ok(())
+}
+
+struct StatusGuard;
+
+impl Drop for StatusGuard {
+    fn drop(&mut self) {
+        update_status("OFFLINE");
+    }
+}
+
+fn update_status(state: &str) {
+    let identifier = std::env::var("IDENTIFIER").unwrap_or_else(|_| "unknown".to_string());
+    
+    let dir = if let Ok(runtime_dir) = std::env::var("XDG_RUNTIME_DIR") {
+        PathBuf::from(runtime_dir).join("fpga-boss")
+    } else if let Some(home_dir) = std::env::var_os("HOME") {
+        Path::new(&home_dir).join(".local/state/fpga-boss")
+    } else {
+        return;
+    };
+
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        eprintln!("Failed to create status directory {:?}: {e}", dir);
+        return;
+    }
+    let file_path = dir.join(format!("{}.status", identifier));
+    if let Err(e) = std::fs::write(&file_path, state) {
+        eprintln!("Failed to write status file {:?}: {e}", file_path);
+    }
 }
