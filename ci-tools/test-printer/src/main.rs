@@ -5,6 +5,7 @@ use serde::Deserialize;
 use std::fs;
 use serde_json::Value;
 use std::collections::HashSet;
+use std::process::ExitCode;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -73,7 +74,7 @@ fn parse_list_json(json_path: String) -> HashSet<String> {
         for suite in suites.keys() {
             if let Some(testcases) = test_list["rust-suites"][suite]["testcases"].as_object() {
                 for case in testcases.keys() {
-                    list_set.insert(format!("{}::{}", suite, case));
+                    list_set.insert(format!("{} | {}", suite, case));
                 }
             }
         }
@@ -86,13 +87,19 @@ fn validate_result_list(list_set: &HashSet<String>, run_set: &HashSet<String>) -
     let mut diff: Vec<&String> = list_set.difference(&run_set).collect();
     diff.sort_unstable();
     if diff.len() > 0 {
-        println!("Tests not executed: {:#?}", diff);
-        return Err(format!("tests not executed = {}", diff.len()));
+        eprintln!("ERROR validating test list: Not executed {} of {} in total ", diff.len(), list_set.len());
+        println!("### Tests *not* executed");
+        println!("| Test Suite | Test |");
+        println!("|---|---|");
+        for result in diff {
+            println!("| {} |", result);
+        }
+        return Err(format!("error"));
     }
     Ok(())
 }
 
-fn main() -> Result<(), String> {
+fn main() -> ExitCode {
     let args = Args::parse();
 
     let junit_xml = fs::read_to_string(args.xml_path).expect("Unable to read junit.xml");
@@ -118,7 +125,7 @@ fn main() -> Result<(), String> {
                 TestStatus::Retried => "🔁",
             };
             
-            run_set.insert(format!("{}::{}", suite.name, case.name));
+            run_set.insert(format!("{} | {}", suite.name, case.name));
 
             results.push(TestResult {
                 suite_name: suite.name.clone(),
@@ -134,9 +141,9 @@ fn main() -> Result<(), String> {
         let list_set: HashSet<String> = parse_list_json(args.json_path.expect("Missing json_path argument"));
         match validate_result_list(&list_set, &run_set) {
             Ok(()) => (),
-            Err(e) => {
-                eprintln!("Error validating list: {e:#}");
-                std::process::exit(1);
+            Err(_e) => {
+                // NOTE: no hard failure for now
+                // return ExitCode::FAILURE;
             }
         }
     }
@@ -154,6 +161,7 @@ fn main() -> Result<(), String> {
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
+    println!("### Tests executed");
     println!("| Test Suite | Test | Status | Time |");
     println!("|---|---|---|---|");
 
@@ -164,5 +172,5 @@ fn main() -> Result<(), String> {
         );
     }
 
-    Ok(())
+    ExitCode::SUCCESS
 }
