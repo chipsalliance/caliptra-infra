@@ -15,6 +15,9 @@ struct Args {
     /// The path to the list.json file
     #[clap(short, long)]
     json_path: Option<String>,
+    /// Error if any test takes longer than 3 minutes
+    #[clap(long)]
+    check_test_time: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -157,11 +160,28 @@ fn main() -> Result<(), String> {
     println!("| Test Suite | Test | Status | Time |");
     println!("|---|---|---|---|");
 
-    for result in results {
+    for result in &results {
         println!(
             "| {} | {} | {} | {:.3}s |",
             result.suite_name, result.case_name, result.status_icon, result.time
         );
+    }
+
+    if args.check_test_time {
+        const LIMIT: f64 = 180.0; // 3 minutes in seconds
+        let slow_tests: Vec<String> = results
+            .iter()
+            .filter(|r| r.time > LIMIT)
+            .map(|r| format!("{}::{} ({:.3}s)", r.suite_name, r.case_name, r.time))
+            .collect();
+
+        if !slow_tests.is_empty() {
+            return Err(format!(
+                "The following tests took longer than 3 minutes (limit {:.1}s):\n{}",
+                LIMIT,
+                slow_tests.join("\n")
+            ));
+        }
     }
 
     Ok(())
