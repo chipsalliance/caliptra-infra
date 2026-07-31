@@ -95,6 +95,12 @@ struct UploadBundleArgs {
     /// Name of the GCS bucket to upload to.
     #[arg(long = "gcs-bucket", value_name = "BUCKET")]
     gcs_bucket: String,
+
+    /// GCS object name for the uploaded manifest file (default: "manifest.toml").
+    /// Use this to upload multiple variants from the same commit without collision,
+    /// e.g. "manifest-core-latest-itrng.toml".
+    #[arg(long = "manifest-name", value_name = "NAME", default_value = "manifest.toml")]
+    manifest_name: String,
 }
 
 #[tokio::main]
@@ -140,6 +146,7 @@ async fn main() -> Result<()> {
             caliptra_bitstream_downloader::upload_manifest_bundle(
                 &args.bundle_path,
                 &args.gcs_bucket,
+                &args.manifest_name,
             )
             .await?;
         }

@@ -305,7 +305,7 @@ async fn find_file_with_extension(dir: &Path, extension: &str) -> Result<Option<
     Ok(match_path)
 }
 
-pub async fn upload_manifest_bundle(bundle_path: &Path, gcs_bucket: &str) -> Result<()> {
+pub async fn upload_manifest_bundle(bundle_path: &Path, gcs_bucket: &str, manifest_name: &str) -> Result<()> {
     println!("Uploading manifest bundle from: {}", bundle_path.display());
 
     let tmp_dir = tempfile::tempdir()
@@ -371,7 +371,7 @@ pub async fn upload_manifest_bundle(bundle_path: &Path, gcs_bucket: &str) -> Res
             .await
             .context("Failed to read updated manifest file content")?,
         gcs_bucket,
-        "manifest.toml",
+        manifest_name,
         &manifest.commit_hash,
     )
     .await?;
