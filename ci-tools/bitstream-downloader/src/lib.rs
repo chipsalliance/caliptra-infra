@@ -95,8 +95,13 @@ async fn upload_content_to_gcs(
     bucket: &str,
     object_name: &str,
     commit_hash: &str,
+    namespace: &str,
 ) -> Result<String> {
-    let object_name = format!("v{MANIFEST_SCHEMA_VERSION}/{commit_hash}/{object_name}");
+    let object_name = if namespace.is_empty() {
+        format!("v{MANIFEST_SCHEMA_VERSION}/{commit_hash}/{object_name}")
+    } else {
+        format!("v{MANIFEST_SCHEMA_VERSION}/{commit_hash}/{namespace}/{object_name}")
+    };
     let client = Storage::builder().build().await?;
     client
         .write_object(
@@ -276,7 +281,7 @@ pub async fn create_manifest_bundle(
     Ok(output_bundle_path)
 }
 
-async fn upload_component_to_gcs(path: &Path, bucket: &str, commit_hash: &str) -> Result<String> {
+async fn upload_component_to_gcs(path: &Path, bucket: &str, commit_hash: &str, namespace: &str) -> Result<String> {
     let file_name = path
         .file_name()
         .map(|n| n.to_string_lossy())
@@ -284,7 +289,7 @@ async fn upload_component_to_gcs(path: &Path, bucket: &str, commit_hash: &str) -
     let file = File::open(path)
         .await
         .context("Failed to open file for upload")?;
-    upload_content_to_gcs(file, bucket, &file_name, commit_hash).await
+    upload_content_to_gcs(file, bucket, &file_name, commit_hash, namespace).await
 }
 
 async fn find_file_with_extension(dir: &Path, extension: &str) -> Result<Option<PathBuf>> {
@@ -305,7 +310,7 @@ async fn find_file_with_extension(dir: &Path, extension: &str) -> Result<Option<
     Ok(match_path)
 }
 
-pub async fn upload_manifest_bundle(bundle_path: &Path, gcs_bucket: &str, manifest_name: &str) -> Result<()> {
+pub async fn upload_manifest_bundle(bundle_path: &Path, gcs_bucket: &str, namespace: &str) -> Result<()> {
     println!("Uploading manifest bundle from: {}", bundle_path.display());
 
     let tmp_dir = tempfile::tempdir()
@@ -345,19 +350,19 @@ pub async fn upload_manifest_bundle(bundle_path: &Path, gcs_bucket: &str, manife
     if let Some(file) = &xsa_file {
         println!("Found XSA file in tarball: {}", file.display());
         manifest.xsa_url =
-            Some(upload_component_to_gcs(file, gcs_bucket, &manifest.commit_hash).await?);
+            Some(upload_component_to_gcs(file, gcs_bucket, &manifest.commit_hash, namespace).await?);
     }
 
     if let Some(file) = &pdi_file {
         println!("Found PDI file in tarball: {}", file.display());
         manifest.pdi_url =
-            Some(upload_component_to_gcs(file, gcs_bucket, &manifest.commit_hash).await?);
+            Some(upload_component_to_gcs(file, gcs_bucket, &manifest.commit_hash, namespace).await?);
     }
 
     if let Some(file) = &bin_file {
         println!("Found BIN file in tarball: {}", file.display());
         manifest.bin_url =
-            Some(upload_component_to_gcs(file, gcs_bucket, &manifest.commit_hash).await?);
+            Some(upload_component_to_gcs(file, gcs_bucket, &manifest.commit_hash, namespace).await?);
     }
 
     manifest.name = Some(format!("{}-bitstream", manifest.caliptra_variant));
@@ -371,8 +376,9 @@ pub async fn upload_manifest_bundle(bundle_path: &Path, gcs_bucket: &str, manife
             .await
             .context("Failed to read updated manifest file content")?,
         gcs_bucket,
-        manifest_name,
+        "manifest.toml",
         &manifest.commit_hash,
+        namespace,
     )
     .await?;
 
