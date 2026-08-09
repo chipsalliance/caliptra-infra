@@ -210,6 +210,14 @@ where
                 "Building artifacts at commit {}: {}",
                 commit.id, commit.title
             );
+            // Discard any residue a previous iteration's build left behind
+            // before moving the worktree. A commit whose committed Cargo.lock
+            // disagrees with its own manifest makes cargo regenerate the
+            // lockfile, and the next bare `git checkout` then aborts with
+            // "Your local changes would be overwritten", killing the whole
+            // run. The worktree is scratch space owned entirely by this tool,
+            // so discarding is always safe.
+            worktree.reset_hard(&commit.id)?;
             worktree.checkout(&commit.id)?;
             worktree.submodule_update()?;
 
