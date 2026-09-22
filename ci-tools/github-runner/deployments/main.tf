@@ -57,6 +57,10 @@ resource "google_service_account" "bitstream_writer" {
 resource "google_service_account" "ai_runner" {
   account_id = "ai-runner"
 }
+
+resource "google_service_account" "reporter" {
+  account_id = "reporter"
+}
 // Delete the cruft
 resource "google_project_default_service_accounts" "delete_default_service_accounts" {
   project = var.project_id
@@ -69,6 +73,7 @@ provider "google" {
 
 resource "google_project_service" "enabled_apis" {
   for_each = toset([
+    "aiplatform.googleapis.com",
     "cloudbuild.googleapis.com",
     "cloudfunctions.googleapis.com",
     "cloudscheduler.googleapis.com",
@@ -124,8 +129,18 @@ resource "google_storage_bucket_iam_binding" "reports_reader" {
   bucket = google_storage_bucket.caliptra_reports.name
   role   = "roles/storage.objectViewer"
   members = [
+    "allUsers",
     "user:clundin@google.com",
+    "user:cmacd@google.com",
     "user:ttrippel@google.com",
+  ]
+}
+
+resource "google_storage_bucket_iam_binding" "reports_writer" {
+  bucket = google_storage_bucket.caliptra_reports.name
+  role   = "roles/storage.objectAdmin"
+  members = [
+    "serviceAccount:${google_service_account.reporter.email}",
   ]
 }
 
@@ -420,6 +435,18 @@ resource "google_project_iam_member" "ai_runner_vertex_ai" {
 
 resource "google_service_account_iam_member" "vm_creator_as_ai_runner" {
   service_account_id = google_service_account.ai_runner.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.vm_creator.email}"
+}
+
+resource "google_project_iam_member" "reporter_vertex_ai" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.reporter.email}"
+}
+
+resource "google_service_account_iam_member" "vm_creator_as_reporter" {
+  service_account_id = google_service_account.reporter.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.vm_creator.email}"
 }

@@ -93,6 +93,7 @@ type MachineInfo struct {
 	hasVck190Tools bool
 	hasBigDisk     bool
 	isAI           bool
+	isReporter     bool
 }
 
 func MachineInfoFromLabels(labels []string) (MachineInfo, error) {
@@ -105,13 +106,23 @@ func MachineInfoFromLabels(labels []string) (MachineInfo, error) {
 			label = strings.TrimSuffix(label, "-AI")
 			isAI = true
 		}
+		isReporter := false
+		if strings.HasSuffix(label, "-reporter") {
+			label = strings.TrimSuffix(label, "-reporter")
+			isReporter = true
+		}
 		mt := getMachineType(label)
 		if mt != "" {
 			if result.machineType != "" && result.machineType != mt {
 				return result, fmt.Errorf("multiple machine type labels: %v, %v", result.machineType, mt)
 			}
 			result.machineType = mt
-			result.isAI = isAI
+			if isAI {
+				result.isAI = true
+			}
+			if isReporter {
+				result.isReporter = true
+			}
 			if strings.Contains(label, "-fpga-tools") {
 				result.hasFpgaTools = true
 			}
@@ -120,6 +131,9 @@ func MachineInfoFromLabels(labels []string) (MachineInfo, error) {
 			}
 			if strings.Contains(label, "-big-disk") {
 				result.hasBigDisk = true
+			}
+			if strings.Contains(label, "-reporter") {
+				result.isReporter = true
 			}
 		}
 		if item == "fpga-tools" {
@@ -130,6 +144,9 @@ func MachineInfoFromLabels(labels []string) (MachineInfo, error) {
 		}
 		if item == "big-disk" {
 			result.hasBigDisk = true
+		}
+		if item == "reporter" {
+			result.isReporter = true
 		}
 	}
 	if result.machineType == "" {
@@ -145,8 +162,8 @@ func Launch(ctx context.Context, client *github.Client, labels []string) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("Launching runner with machine type %q (FPGA: %v, VCK190: %v, BigDisk: %v)\n",
-		machineInfo.machineType, machineInfo.hasFpgaTools, machineInfo.hasVck190Tools, machineInfo.hasBigDisk)
+	log.Printf("Launching runner with machine type %q (FPGA: %v, VCK190: %v, BigDisk: %v, AI: %v, Reporter: %v)\n",
+		machineInfo.machineType, machineInfo.hasFpgaTools, machineInfo.hasVck190Tools, machineInfo.hasBigDisk, machineInfo.isAI, machineInfo.isReporter)
 
 	runner, err := GitHubRegisterRunner(ctx, client, labels, "")
 	if err != nil {
@@ -197,7 +214,16 @@ func Launch(ctx context.Context, client *github.Client, labels []string) error {
 		NetworkInterfaces: defaultNetworks(),
 	}
 
-	if machineInfo.isAI {
+	if machineInfo.isReporter {
+		instance.ServiceAccounts = []*computepb.ServiceAccount{
+			{
+				Email: proto.String(fmt.Sprintf("reporter@%v.iam.gserviceaccount.com", gcpProject)),
+				Scopes: []string{
+					"https://www.googleapis.com/auth/cloud-platform",
+				},
+			},
+		}
+	} else if machineInfo.isAI {
 		instance.ServiceAccounts = []*computepb.ServiceAccount{
 			{
 				Email: proto.String(fmt.Sprintf("ai-runner@%v.iam.gserviceaccount.com", gcpProject)),
