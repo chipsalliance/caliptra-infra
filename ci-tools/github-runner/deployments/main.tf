@@ -144,6 +144,36 @@ resource "google_storage_bucket_iam_binding" "reports_writer" {
   ]
 }
 
+//////////////// Embargoed Reports Bucket
+
+resource "google_storage_bucket" "caliptra_reports_embargoed" {
+  project                     = var.project_id
+  name                        = "${var.project_id}-caliptra-reports-embargoed"
+  location                    = "US"
+  force_destroy               = false
+  uniform_bucket_level_access = true
+  depends_on = [google_project_service.enabled_apis]
+}
+
+resource "google_storage_bucket_iam_binding" "reports_embargoed_reader" {
+  bucket = google_storage_bucket.caliptra_reports_embargoed.name
+  role   = "roles/storage.objectViewer"
+  members = [
+    "user:clundin@google.com",
+    "user:cmacd@google.com",
+    "user:jhand@google.com",
+    "user:zhalvorsen@google.com",
+  ]
+}
+
+resource "google_storage_bucket_iam_binding" "reports_embargoed_writer" {
+  bucket = google_storage_bucket.caliptra_reports_embargoed.name
+  role   = "roles/storage.objectAdmin"
+  members = [
+    "serviceAccount:${google_service_account.reporter.email}",
+  ]
+}
+
 //////////////// Secrets
 
 // To avoid leaking the secret contents in tfstate, the secret "version"
