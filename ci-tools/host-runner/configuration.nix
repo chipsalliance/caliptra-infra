@@ -135,6 +135,13 @@ in
   # Keep logs for 2 weeks, we generally only need to look at them when things break.
   services.journald.extraConfig = "MaxRetentionSec=2weeks";
 
+  # The logrotate config check runs `id -un` at build time. When cross-compiling
+  # from a non-NixOS host without a working build sandbox (e.g. a single-user Nix
+  # install on a corp workstation) the emulated aarch64 `id` cannot resolve the
+  # builder's UID and the build fails. We only use nixpkgs' default logrotate
+  # config, so skipping the check is safe.
+  services.logrotate.checkConfig = false;
+
   systemd.timers."sync-images" = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
