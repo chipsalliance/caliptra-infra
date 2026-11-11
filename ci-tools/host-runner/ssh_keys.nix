@@ -9,6 +9,8 @@
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFGaE+OpSSfjOO/J6ap0dpNWHwqG0IsuMK4Ca0LY2n3L cfrantz@cfrantz-desktop.svl.corp.google.com"
     # jhand
     "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNAmcxogmvhKGQy/kd5R+uB382XiSb1p/hlqx/lJv3IcxT3JDVk2cRuVxipirplizT6g5+a5FWH6fGrOizQ/Rd0= publickey"
+    # levenick
+    "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBIfG73OaiyV0FJCiljQQE8LEty3zrMytYLSsV+1oubAFpS6bSLgi2G7xODTpcibpeCaLWtR+Tmqz3fGmUBfFxas= levenick@google.com",
     # zhalvorsen
     "ecdsa-sha2-nistp384 AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzODQAAABhBLCee6PZ63j9MXxo2LIB6K7I5WmIKJAWdww922p9klsKVhLkMpNPXkLtYaf44GDLSmNO1j2stkXw174agt722rAa6fNInSCY8HPpAlyAJ7xELEGDOb5FfQVJU5ruGYJ7LQ== zhalvorsen@zhalvorsen.c.googlers.com"
     # anamendes23

@@ -31,7 +31,7 @@ in
       ftdi = "1-1.2.3";
       sdwire = "1-1.2.4";
     })
-    (fpga_service.mkVckSubsystemDev "miguelosorio" {
+    (fpga_service.mkVckSubsystemDev "levenick" {
       ftdi = "1-1.1";
       sdwire = "1-1.2.2";
     })
