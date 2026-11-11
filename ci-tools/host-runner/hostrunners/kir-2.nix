@@ -27,7 +27,7 @@ in
       ftdi = "1-1.2.1.2";
       sdwire = "1-1.2.1.1";
     })
-    (fpga_service.mkVckSubsystemJob "caliptra-kir-vck-4" {
+    (fpga_service.mkVckSubsystemDev "swenson" {
       ftdi = "1-1.2.4";
       sdwire = "1-1.2.3";
     })
