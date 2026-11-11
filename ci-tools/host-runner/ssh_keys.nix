@@ -15,6 +15,8 @@
     "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBO22BHitOGrsd2rHMBl2M4L9AtbE6gtiiVxQpPcS9tJKB74HW3O9Wnfs3sLW2wrxIQ7VD4OWDBiqpcJpiLGIsOg= publickey"
     # <FILL IN GITHUB ID>
     "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBBSMeiXDietN3p773SQOi3I2WllGqldrzwj/9R/T/PgKcKSj8K+Fi/YkHFIrsgXwbRbhWDXCEE/1XGhuQmcNszU= publickey"
+    # swenson
+    "ecdsa-sha2-nistp521 AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBAEv3TqKHssPHVZtZ4df3wx6x7lF4SmKuRy5s9jbyFUELqn0ET0z4OsvQ4BV0g3LoRofdzEr1qrzFQh8VFJLROBYLgCAm7m66rjcjLtqAF80rArEWuWkdQAATyUdTb+AVo2RZ60JCRR6t356hp9G2WCG/RP/CT85HD33+JHvnbttU4p3aA== swenson@fura"
   ];
   nine_elements_keys = [
     # leongross
