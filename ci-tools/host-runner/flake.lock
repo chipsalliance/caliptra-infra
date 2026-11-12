@@ -44,11 +44,11 @@
       },
       "locked": {
         "dir": "ci-tools/fpga-boss",
-        "lastModified": 1786324010,
-        "narHash": "sha256-ss073wa0qUpkvBxmfHtiKvgW8QcvIrhhpOAT3sotXVw=",
+        "lastModified": 1790116808,
+        "narHash": "sha256-FM/Tvkl+jkbLk4Zz/JBcwprubR6pBU0olORG7uvXYiI=",
         "owner": "chipsalliance",
         "repo": "caliptra-infra",
-        "rev": "c7497382a9d338430bcbe79f4e54c94ff7c297c3",
+        "rev": "328eb20bed69b3409a62edd45d6dc4c0e26d24c4",
         "type": "github"
       },
       "original": {
@@ -136,11 +136,11 @@
       },
       "locked": {
         "dir": "ci-tools/github-runner",
-        "lastModified": 1786324010,
-        "narHash": "sha256-ss073wa0qUpkvBxmfHtiKvgW8QcvIrhhpOAT3sotXVw=",
+        "lastModified": 1790116808,
+        "narHash": "sha256-FM/Tvkl+jkbLk4Zz/JBcwprubR6pBU0olORG7uvXYiI=",
         "owner": "chipsalliance",
         "repo": "caliptra-infra",
-        "rev": "c7497382a9d338430bcbe79f4e54c94ff7c297c3",
+        "rev": "328eb20bed69b3409a62edd45d6dc4c0e26d24c4",
         "type": "github"
       },
       "original": {

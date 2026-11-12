@@ -62,6 +62,8 @@
         modules = [
           ./configuration.nix
           ./hostrunners/kir-2.nix
+          # Reachable over a WireGuard gateway.
+          (import ./wireguard.nix { address = "10.100.0.2/24"; })
         ];
       };
       nixosConfigurations."caliptra-hostrunner3" = nixpkgs.lib.nixosSystem {

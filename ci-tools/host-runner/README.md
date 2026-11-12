@@ -47,6 +47,14 @@ There are a few secrets that this configuration relies on. They are not checked 
   - This configuration expects a hashed password to be present at `ci-tools/host-runner/secrets/hostrunner-pass`.
   - Create the password by inputting it into the `mkpasswd` CLI tool.
     - You can create a shell that has `mkpasswd` using Nix: `$ nix shell nixpkgs#mkpasswd`.
+1. WireGuard gateway details (only required for host runners that import [wireguard.nix](wireguard.nix))
+  - Save the gateway's public key and endpoint at `ci-tools/host-runner/secrets/wireguard.nix`:
+    ```nix
+    {
+      publicKey = "<gateway-public-key>";
+      endpoint = "<gateway-host-or-ip>:51820";
+    }
+    ```
 
 # Bootstrapping a new Raspberry PI
 
@@ -125,6 +133,35 @@ For VCK-190s this image _does_ include the bitstream. This is because it needs t
 # Connect an FPGA to the host runner
 
 For an example, see [hostrunners/kir-0.nix](hostrunners/kir-0.nix) for 3 ZCU-104s managed with systemd. You should use Nix to manage these services so they are re-producible.
+
+# WireGuard access
+
+Host runners sit behind NAT on the lab network, so remote access goes through a
+publicly reachable WireGuard gateway (UDP `51820`, `net.ipv4.ip_forward=1`,
+tunnel subnet `10.100.0.0/24`). The gateway's `/etc/wireguard/wg0.conf` holds
+the peer list, and its endpoint and public key live locally in
+`ci-tools/host-runner/secrets/wireguard.nix` (out of version control).
+
+| Peer | Tunnel address |
+|---|---|
+| gateway | `10.100.0.1` |
+| host runners | `10.100.0.2+` |
+| client peers | `10.100.0.100+` |
+
+## Onboard a host runner
+
+1. On the Pi, generate a key pair (the private key never leaves the device):
+   ```bash
+   mkdir -p -m 700 ~/.wireguard
+   nix shell nixpkgs#wireguard-tools -c sh -c 'umask 077; wg genkey > ~/.wireguard/privkey'
+   nix shell nixpkgs#wireguard-tools -c sh -c 'wg pubkey < ~/.wireguard/privkey'
+   ```
+2. On the gateway, append a `[Peer]` with that public key and a free `/32`, then `sudo systemctl reload wg-quick@wg0`.
+3. Add `(import ./wireguard.nix { address = "10.100.0.N/24"; })` to the host's module list in [flake.nix](flake.nix) and deploy as usual.
+
+## Connect as a client
+
+See [WIREGUARD.md](WIREGUARD.md) for a step-by-step guide you can hand to a new user. It also has the admin steps for registering and revoking peers on the gateway.
 
 # Development
 
