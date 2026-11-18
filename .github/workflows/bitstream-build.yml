@@ -1,0 +1,119 @@
+# Licensed under the Apache-2.0 license
+
+name: FPGA Bitstream build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/bitstream-build.yml"
+      - ".gitmodules"
+      - "ci-tools/bitstream-downloader/**"
+      - "hw/1.x/**"
+      - "hw/2.0/**"
+      - "hw/2.1/**"
+      - "hw/2.2/**"
+
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Release folder or subtarget to build
+        type: choice
+        default: all
+        options:
+          - "all"
+          - "1.x"
+          - "2.0"
+          - "2.0/core"
+          - "2.0/subsystem"
+          - "2.1"
+          - "2.1/core"
+          - "2.1/subsystem"
+          - "2.2"
+          - "2.2/core"
+          - "2.2/subsystem"
+      variant:
+        description: Optional single variant name (e.g. subsystem-2.2-segmented); overrides target if set
+        type: string
+        required: false
+        default: ""
+      include_standard:
+        description: Also build non-segmented VCK190 bitstreams
+        type: boolean
+        default: true
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has_targets: ${{ steps.set-matrix.outputs.has_targets }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          submodules: false
+
+      - name: Define build matrix
+        id: set-matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TARGET: ${{ inputs.target }}
+          INPUT_VARIANT: ${{ inputs.variant }}
+          INPUT_INCLUDE_STANDARD: ${{ inputs.include_standard }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: cargo run --manifest-path ci-tools/Cargo.toml -p caliptra-bitstream-downloader -- ci-matrix
+
+  build-bitstream:
+    needs: setup
+    if: needs.setup.outputs.has_targets == 'true'
+    runs-on: [bitstream-builder]
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.85.1
+
+      - name: Build bitstream
+        run: cargo run --manifest-path ci-tools/Cargo.toml -p caliptra-bitstream-downloader -- build --staging-dir "${{ runner.temp }}/bitstream" "${{ matrix.variant }}"
+
+      - name: Upload bitstream
+        uses: actions/upload-artifact@v4
+        with:
+          name: caliptra-bitstream-${{ matrix.variant }}
+          path: |
+            ${{ runner.temp }}/bitstream/*.bin
+            ${{ runner.temp }}/bitstream/*.xsa
+            ${{ runner.temp }}/bitstream/*.pdi
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Bundle bitstream
+        run: |
+          cargo run --manifest-path ci-tools/Cargo.toml -p caliptra-bitstream-downloader -- bundle \
+            --variant "${{ matrix.variant }}" \
+            --staging-dir "${{ runner.temp }}/bitstream" \
+            --output-dir manifest-bundle
+
+      - name: Upload bitstream bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: caliptra-bitstream-bundle-${{ matrix.variant }}
+          path: manifest-bundle/caliptra-bitstream.tar.gz
+          retention-days: 7
+          if-no-files-found: error
+
+      # Only published variants are uploaded to GCS by the runner post-job hook.
+      - name: Clean up unpublished bundle
+        if: always() && matrix.publish == false
+        run: rm -rf manifest-bundle

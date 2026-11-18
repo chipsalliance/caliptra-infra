@@ -1,0 +1,18 @@
+[submodule "hw/1.x/1.0/rtl"]
+	path = hw/1.x/1.0/rtl
+	url = https://github.com/chipsalliance/caliptra-rtl.git
+	branch = patch_v1.0
+[submodule "hw/1.x/latest/rtl"]
+	path = hw/1.x/latest/rtl
+	url = https://github.com/chipsalliance/caliptra-rtl.git
+	branch = main
+[submodule "hw/2.0/caliptra-ss"]
+	path = hw/2.0/caliptra-ss
+	url = https://github.com/chipsalliance/caliptra-ss.git
+[submodule "hw/2.1/caliptra-ss"]
+	path = hw/2.1/caliptra-ss
+	url = https://github.com/chipsalliance/caliptra-ss.git
+[submodule "hw/2.2/caliptra-ss"]
+	path = hw/2.2/caliptra-ss
+	url = https://github.com/chipsalliance/caliptra-ss.git
+	branch = main

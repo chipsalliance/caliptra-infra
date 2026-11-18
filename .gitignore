@@ -2,3 +2,10 @@ ci-tools/host-runner/secrets/
 **/.terraform.lock.hcl
 **/target
 **/*.tar.gz
+caliptra_build/
+.Xil/
+vivado*.log
+vivado*.jou
+vivado*.str
+manifest-bundle/
+*.dcp

@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and<BR>
 limitations under the License.*_<BR>
 
 # **Caliptra FPGA Guide** #
+> **Note:** `hw/fpga/` is retained for legacy `.github/workflows/fpga-image.yml` (`create_boot_bin.sh` / PetaLinux) builds. All FPGA RTL and bitstream build configurations live under `hw/1.x/`, `hw/2.0/`, `hw/2.1/`, and `hw/2.2/` (see [`hw/README.md`](../README.md)).
+
 FPGA provides a fast environment for software development and testing that uses Caliptra RTL.
 The FPGA's Programmable Logic is programmed with the Caliptra RTL and FPGA specific SoC wrapper logic including a connection to the Processing System AXI bus.
 The Processing System ARM cores then act as the SoC Security Processor with memory mapped access to Caliptra's public register space.
