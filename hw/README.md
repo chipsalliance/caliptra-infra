@@ -11,8 +11,8 @@ This directory consolidates all Caliptra FPGA wrapper configurations, Vivado bui
 | `hw/1.x/` | ZCU104 (`xczu7ev-ffvc1156-2-e`) | `chipsalliance/caliptra-sw` (`caliptra-1.x`) | `hw/1.x/1.0/rtl` -> `caliptra-rtl` @ `7c953512251707d6f77d7d9a2f6be186ed013d50` (`patch_v1.0`)<br>`hw/1.x/latest/rtl` -> `caliptra-rtl` @ `5f85fb4bc95b753a2f7d042db7dc2644ca1e8c49` (`main` / `v1.1`) |
 | `hw/2.0/core/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-sw` (`caliptra-2.0`) | `hw/2.0/caliptra-ss` -> `caliptra-ss` @ `b5718a0f7fe7936b5082a8dfc23add896755af3a` (shared with `hw/2.0/subsystem/`) |
 | `hw/2.0/subsystem/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-mcu-sw` (`main`) | `hw/2.0/caliptra-ss` -> `caliptra-ss` @ `b5718a0f7fe7936b5082a8dfc23add896755af3a` |
-| `hw/2.1/core/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-sw` (`main`) | `hw/2.1/caliptra-ss` -> `caliptra-ss` @ `753308ddc82409516dd5d4069c124bba017e5ee3` (shared with `hw/2.1/subsystem/`) |
-| `hw/2.1/subsystem/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-mcu-sw` (`caliptra-mcu-dev-2.2:hw/rev-2_1`) | `hw/2.1/caliptra-ss` -> `caliptra-ss` @ `753308ddc82409516dd5d4069c124bba017e5ee3` |
+| `hw/2.1/core/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-sw` (`main`) | `hw/2.1/caliptra-ss` -> `caliptra-ss` @ `3350c70a296bf897abe8c02e5ec0da69cc83ee16` (shared with `hw/2.1/subsystem/`) |
+| `hw/2.1/subsystem/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-mcu-sw` (`main-2.1:hw/rev-2_1`) | `hw/2.1/caliptra-ss` -> `caliptra-ss` @ `3350c70a296bf897abe8c02e5ec0da69cc83ee16` |
 | `hw/2.2/core/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-sw` (`caliptra-2.2-dev`) | `hw/2.2/caliptra-ss` -> `caliptra-ss` @ `743d5f7eaa9a946f405b9087c7ffd2fbb38e1543` (`main`, shared with `hw/2.2/subsystem/`) |
 | `hw/2.2/subsystem/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-mcu-sw` (`caliptra-mcu-dev-2.2:hw/latest`) | `hw/2.2/caliptra-ss` -> `caliptra-ss` @ `743d5f7eaa9a946f405b9087c7ffd2fbb38e1543` (`main`) |
 
