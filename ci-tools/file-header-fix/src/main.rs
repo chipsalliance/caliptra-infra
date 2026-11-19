@@ -14,8 +14,6 @@ const IGNORED_PATHS: &[&str] = &[
     "./sw-emulator/compliance-test/target-files/link.ld",
     "./runtime/dpe",
     "./hw-latest/fpga/caliptra_build",
-    "./hw/fpga/caliptra_build",
-    "./hw/fpga/petalinux_project",
     "./hw/1.0/rtl",
     "./hw/latest/rtl",
     "./hw/latest/caliptra-ss",

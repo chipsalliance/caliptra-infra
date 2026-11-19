@@ -7,10 +7,18 @@
 }:
 rec {
   download-image = pkgs.writeShellScriptBin "download-image" ''
+    set -euo pipefail
+    if [ $# -lt 1 ]; then
+      echo "Usage: download-image <artifact_name> [branch=main] [repo=caliptra-infra]" >&2
+      exit 1
+    fi
     export GCP_ZONE="us-central1"
     export GITHUB_ORG="chipsalliance"
     export GCP_PROJECT="caliptra-github-ci"
-    ${rtool}/bin/rtool download_artifact 379559 40993215 fpga-image.yml "$@"
+    ARTIFACT="$1"
+    BRANCH="''${2:-main}"
+    REPO="''${3:-caliptra-infra}"
+    ${rtool}/bin/rtool download_artifact 379559 40993215 fpga-image.yml "$ARTIFACT" "$BRANCH" "$REPO"
   '';
   sync-images = pkgs.writeShellScriptBin "sync-images" ''
     export GCP_ZONE="us-central1"
@@ -19,36 +27,38 @@ rec {
 
     cd /home/${user}
     set -eux
+    DATE_SUFFIX=$(date +%Y%m%d)
+
     mkdir -p ci-images
     pushd ci-images
 
-    ${rtool}/bin/rtool download_artifact 379559 40993215 fpga-image-1.x.yml caliptra-fpga-image main caliptra-infra > caliptra-fpga-image.zip
-    ${pkgs.unzip}/bin/unzip caliptra-fpga-image.zip
-    DATE_SUFFIX=$(date +%Y%m%d)
-    (mv zcu104.img zcu104.img.old."$DATE_SUFFIX" || true)
-    mv image.img zcu104.img
-    rm caliptra-fpga-image.zip
-
-    for VARIANT in "caliptra-fpga-image-core" "caliptra-fpga-image-subsystem"; do
-        ${rtool}/bin/rtool download_artifact 379559 40993215 fpga-image.yml $VARIANT main > $VARIANT.zip
-        ${pkgs.unzip}/bin/unzip $VARIANT.zip
-        (mv $VARIANT.img $VARIANT.img.old."$DATE_SUFFIX" || true)
-        mv image.img $VARIANT.img
-        rm $VARIANT.zip
+    for VARIANT in "caliptra-fpga-image-core" "caliptra-fpga-image-subsystem" "caliptra-fpga-image-zcu104"; do
+        ${rtool}/bin/rtool download_artifact 379559 40993215 fpga-image.yml "$VARIANT" main caliptra-infra > "$VARIANT.zip"
+        ${pkgs.unzip}/bin/unzip -o "$VARIANT.zip"
+        (mv "$VARIANT.img" "$VARIANT.img.old.$DATE_SUFFIX" || true)
+        mv image.img "$VARIANT.img"
+        rm "$VARIANT.zip"
     done
 
-    popd 
+    if [ -f zcu104.img ] && [ ! -L zcu104.img ]; then
+        mv zcu104.img "zcu104.img.old.$DATE_SUFFIX"
+    fi
+    ln -sfn caliptra-fpga-image-zcu104.img zcu104.img
+
+    popd
 
     mkdir -p dev-images
     pushd dev-images
 
-    for VARIANT in "caliptra-fpga-image-core-dev" "caliptra-fpga-image-subsystem-dev"; do
-        ${rtool}/bin/rtool download_artifact 379559 40993215 fpga-image.yml $VARIANT main > $VARIANT.zip
-        ${pkgs.unzip}/bin/unzip $VARIANT.zip
-        (mv $VARIANT.img $VARIANT.img.old."$DATE_SUFFIX" || true)
-        mv dev-image.img $VARIANT.img
-        rm $VARIANT.zip
-     done
+    for VARIANT in "caliptra-fpga-image-core-dev" "caliptra-fpga-image-subsystem-dev" "caliptra-fpga-image-zcu104-dev"; do
+        ${rtool}/bin/rtool download_artifact 379559 40993215 fpga-image.yml "$VARIANT" main caliptra-infra > "$VARIANT.zip"
+        ${pkgs.unzip}/bin/unzip -o "$VARIANT.zip"
+        (mv "$VARIANT.img" "$VARIANT.img.old.$DATE_SUFFIX" || true)
+        mv dev-image.img "$VARIANT.img"
+        rm "$VARIANT.zip"
+    done
+
+    popd
   '';
   image-cleanup = pkgs.writeShellScriptBin "image-cleanup" ''
     set -eux

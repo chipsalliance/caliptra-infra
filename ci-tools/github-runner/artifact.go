@@ -24,7 +24,7 @@ func findArtifact(artifacts *github.ArtifactList, name string) (*github.Artifact
 
 func DownloadArtifact(ctx context.Context, client *github.Client, workflowFilename string, artifactName string, branch string, repo string) error {
 	if repo == "" {
-		repo = "caliptra-sw"
+		repo = "caliptra-infra"
 	}
 	workflow, _, err := client.Actions.GetWorkflowByFileName(ctx, githubOrg, repo, workflowFilename)
 	if err != nil {
