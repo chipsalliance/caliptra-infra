@@ -14,6 +14,8 @@ use tar::Archive as TarArchive;
 use tar::Builder as TarBuilder;
 use tokio::fs::{self, File};
 
+pub mod builder;
+
 pub const MANIFEST_SCHEMA_VERSION: &str = "1";
 pub const OUTPUT_BUNDLE_FILENAME: &str = "caliptra-bitstream.tar.gz";
 

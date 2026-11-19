@@ -1,0 +1,235 @@
+# Licensed under the Apache-2.0 license
+
+# Create a project to package Caliptra.
+# Packaging Caliptra allows Vivado to recognize the APB bus as an endpoint for the memory map.
+create_project caliptra_package_project $outputDir -part $PART
+if {$BOARD eq "VCK190"} {
+  set_property board_part xilinx.com:vck190:part0:3.1 [current_project]
+}
+
+# TODO: Check these SS defines: https://github.com/chipsalliance/caliptra-mcu-sw/issues/368
+lappend VERILOG_OPTIONS TECH_SPECIFIC_ICG
+lappend VERILOG_OPTIONS USER_ICG=fpga_fake_icg
+lappend VERILOG_OPTIONS RV_FPGA_OPTIMIZE
+lappend VERILOG_OPTIONS css_mcu0_TEC_RV_ICG=css_mcu0_clockhdr
+lappend VERILOG_OPTIONS TECH_SPECIFIC_EC_RV_ICG
+lappend VERILOG_OPTIONS css_mcu0_USER_EC_RV_ICG=mcu_clockhdr
+lappend VERILOG_OPTIONS css_mcu0_RV_BUILD_AXI4
+lappend VERILOG_OPTIONS MCU_RV_BUILD_AXI4
+lappend VERILOG_OPTIONS I3C_USE_AXI
+# TODO: This AXI_ID_WIDTH is probably way larger than needed.
+lappend VERILOG_OPTIONS AXI_ID_WIDTH=19 AXI_USER_WIDTH=32 AXI_DATA_WIDTH=32 AXI_ADDR_WIDTH=32
+# Might be removed in newer RTL? TLUL has compilation failure
+lappend VERILOG_OPTIONS CALIPTRA_AXI_ID_WIDTH=19 CALIPTRA_AXI_USER_WIDTH=32
+# Try using xilinx primitives
+lappend VERILOG_OPTIONS CALIPTRA_PRIM_DEFAULT_IMPL=caliptra_prim_pkg::ImplXilinx
+
+set_property verilog_define $VERILOG_OPTIONS [current_fileset]
+puts "\n\nVERILOG DEFINES: [get_property verilog_define [current_fileset]]"
+
+# Add Caliptra VEER Headers
+add_files $caliptrartlDir/src/riscv_core/veer_el2/rtl/el2_param.vh
+add_files $caliptrartlDir/src/riscv_core/veer_el2/rtl/pic_map_auto.h
+add_files $caliptrartlDir/src/riscv_core/veer_el2/rtl/el2_pdef.vh
+add_files [ glob $caliptrartlDir/src/riscv_core/veer_el2/rtl/include/*.svh ]
+add_files [ glob $caliptrartlDir/src/riscv_core/veer_el2/rtl/include/*.sv ]
+
+# Add Caliptra VEER sources
+add_files [ glob $caliptrartlDir/src/riscv_core/veer_el2/rtl/*.sv ]
+add_files [ glob $caliptrartlDir/src/riscv_core/veer_el2/rtl/*/*.sv ]
+add_files [ glob $caliptrartlDir/src/riscv_core/veer_el2/rtl/*/*.v ]
+
+# Add Adam's Bridge
+source adams-bridge-files.tcl
+
+# Add Caliptra headers and packages
+add_files [ glob $caliptrartlDir/src/*/rtl/*.svh ]
+add_files [ glob $caliptrartlDir/src/integration/rtl/caliptra_reg_ss/*.svh ]
+add_files [ glob $caliptrartlDir/src/*/rtl/*_pkg.sv ]
+# Add Caliptra sources
+add_files [ glob $caliptrartlDir/src/*/rtl/*.sv ]
+add_files [ glob $caliptrartlDir/src/*/rtl/*.v ]
+
+# Add ss RTL
+# Add MCU VEER Headers
+add_files $ssrtlDir/src/riscv_core/veer_el2/rtl/defines/css_mcu0_pic_map_auto.h
+add_files $ssrtlDir/src/riscv_core/veer_el2/rtl/defines/css_mcu0_el2_pdef.vh
+add_files $ssrtlDir/src/riscv_core/veer_el2/rtl/defines/css_mcu0_el2_param.vh
+add_files $ssrtlDir/src/riscv_core/veer_el2/rtl/defines/css_mcu0_common_defines.vh
+add_files [ glob $ssrtlDir/src/riscv_core/veer_el2/rtl/design/include/*.svh ]
+add_files [ glob $ssrtlDir/src/riscv_core/veer_el2/rtl/design/include/*.sv ]
+# For SS EL2_IC_DATA_SRAM is defined in testbench
+add_files [ glob $ssrtlDir/src/riscv_core/veer_el2/tb/icache_macros.svh ]
+# Add MCU VEER sources
+add_files [ glob $ssrtlDir/src/riscv_core/veer_el2/rtl/design/*.sv ]
+add_files [ glob $ssrtlDir/src/riscv_core/veer_el2/rtl/design/*/*.sv ]
+add_files [ glob $ssrtlDir/src/riscv_core/veer_el2/rtl/design/*/*.v ]
+# OTP
+add_files [ glob $ssrtlDir/src/fuse_ctrl/rtl/*.sv ]
+# OTP memory
+add_files $ssrtlDir/src/fuse_ctrl/data/otp-img.2048.vmem
+set_property file_type {Memory Initialization Files} [get_files $ssrtlDir/src/fuse_ctrl/data/otp-img.2048.vmem]
+# OTP from testbench
+add_files $ssrtlDir/src/integration/testbench/prim_generic_otp.sv
+# SS IPs
+add_files [ glob $ssrtlDir/src/*/rtl/*.svh ]
+add_files [ glob $ssrtlDir/src/*/rtl/*.sv ]
+
+# I3C
+set i3cDir $ssrtlDir/third_party/i3c-core
+# Include headers and packages first
+add_files [ glob $i3cDir/src/*.svh ]
+add_files [ glob $i3cDir/src/libs/*.svh ]
+add_files [ glob $i3cDir/src/*/*/*_pkg.sv ]
+add_files [ glob $i3cDir/src/*/*_pkg.sv ]
+add_files [ glob $i3cDir/src/*_pkg.sv ]
+# Then the rest of the sv files
+add_files [ glob $i3cDir/src/*/*/*.sv ]
+add_files [ glob $i3cDir/src/*/*.sv ]
+add_files [ glob $i3cDir/src/*.sv ]
+
+# USB (Architecture B internal ULPI USB3320 PHY + High-Speed Host Loopback)
+set usbDir $ssrtlDir/third_party/usb2/src
+add_files [ glob $usbDir/integration/rtl/generated/*.svh ]
+add_files [ glob $usbDir/integration/rtl/*.sv ]
+add_files [ glob $usbDir/integration/rtl/generated/*.sv ]
+add_files [ glob $usbDir/usb_hub_composite_device/RTL/INTERFACE/*.vhdl ]
+add_files [ glob $usbDir/usb_hub_composite_device/RTL/RTL/*.vhdl ]
+# FPGA 60 MHz ULPI timing + CDC + OCP EP0 toggle fixes:
+# - usb_pie_sync_stp.patch: drive ULPI STP from registered ulpi_stp_r instead of
+#   the 17-LUT-level ulpi_stp_async low-power wake cone.
+# - usb_compound_ulpi_clk.patch: drive pie_clk directly from ulpi_clk instead of
+#   a glitchy behavioral utmi_clk/ulpi_clk LUT mux.
+# - usb_synchronizer_60mhz.patch: register pie_dev_selected into hclk and
+#   epinfo_* into FsClk (ulpi_clk) so the pie_clk -> hclk -> pie_clk cone is cut.
+# - usb_ocp_arb_toggle_fix.patch: keep rsp_live_active_c deasserted in
+#   T_IDLE/T_MIRROR and reset in_data_toggle_r to DATA1 on SETUP / ZLP end.
+if {![info exists USB_ULPI_SYNC_STP] || $USB_ULPI_SYNC_STP} {
+  file copy -force $usbDir/usb_hub_composite_device/RTL/RTL/usb_pie.m.vhdl $outputDir/usb_pie.m.vhdl
+  exec patch $outputDir/usb_pie.m.vhdl $fpgaDir/src/usb_pie_sync_stp.patch
+  remove_files [ glob $usbDir/usb_hub_composite_device/RTL/RTL/usb_pie.m.vhdl ]
+  add_files $outputDir/usb_pie.m.vhdl
+
+  file copy -force $usbDir/usb_hub_composite_device/RTL/RTL/usb_synchronizer.m.vhdl $outputDir/usb_synchronizer.m.vhdl
+  exec patch $outputDir/usb_synchronizer.m.vhdl $fpgaDir/src/usb_synchronizer_60mhz.patch
+  remove_files [ glob $usbDir/usb_hub_composite_device/RTL/RTL/usb_synchronizer.m.vhdl ]
+  add_files $outputDir/usb_synchronizer.m.vhdl
+
+  file copy -force $usbDir/usb_hub_composite_device/RTL/RTL/usb_ocp_recovery_post_sync_arb.m.vhdl $outputDir/usb_ocp_recovery_post_sync_arb.m.vhdl
+  exec patch $outputDir/usb_ocp_recovery_post_sync_arb.m.vhdl $fpgaDir/src/usb_ocp_arb_toggle_fix.patch
+  remove_files [ glob $usbDir/usb_hub_composite_device/RTL/RTL/usb_ocp_recovery_post_sync_arb.m.vhdl ]
+  add_files $outputDir/usb_ocp_recovery_post_sync_arb.m.vhdl
+}
+add_files [ glob $usbDir/usb_hub_composite_device/RTL/STRUCTURE/*.vhdl ]
+if {![info exists USB_ULPI_SYNC_STP] || $USB_ULPI_SYNC_STP} {
+  file copy -force $usbDir/usb_hub_composite_device/RTL/STRUCTURE/ip_xxx_3511_hs_mem_compound_structure.a.vhdl $outputDir/ip_xxx_3511_hs_mem_compound_structure.a.vhdl
+  exec patch $outputDir/ip_xxx_3511_hs_mem_compound_structure.a.vhdl $fpgaDir/src/usb_compound_ulpi_clk.patch
+  remove_files [ glob $usbDir/usb_hub_composite_device/RTL/STRUCTURE/ip_xxx_3511_hs_mem_compound_structure.a.vhdl ]
+  add_files $outputDir/ip_xxx_3511_hs_mem_compound_structure.a.vhdl
+}
+set_property file_type {VHDL 2008} [get_files *.vhdl]
+
+# Add FPGA specific sources
+add_files [ glob $fpgaDir/src/*.sv]
+add_files [ glob $fpgaDir/src/*.v]
+
+# Replace RAM with FPGA block ram
+remove_files [ glob $caliptrartlDir/src/ecc/rtl/ecc_ram_tdp_file.sv ]
+
+# Replace caliptra_ss_top with version modified with faster I3C clocks
+file copy [ glob $ssrtlDir/src/integration/rtl/caliptra_ss_top.sv ] $outputDir/caliptra_ss_top.sv
+exec patch $outputDir/caliptra_ss_top.sv $fpgaDir/src/caliptra_ss_top.patch
+remove_files [ glob $ssrtlDir/src/integration/rtl/caliptra_ss_top.sv ]
+add_files $outputDir/caliptra_ss_top.sv
+
+# Add missing include
+file copy [ glob $caliptrartlDir/src/ahb_lite_bus/rtl/ahb_lite_address_decoder.sv ] $outputDir/ahb_lite_address_decoder.sv
+exec sed -i {1i `include \"config_defines.svh\"} $outputDir/ahb_lite_address_decoder.sv
+remove_files [ glob $caliptrartlDir/src/ahb_lite_bus/rtl/ahb_lite_address_decoder.sv ]
+add_files $outputDir/ahb_lite_address_decoder.sv
+
+# Change soc_ifc to assign generic_input_wires[1] to CALIPTRA_FUSE_GRANULARITY
+file copy [ glob $caliptrartlDir/src/soc_ifc/rtl/soc_ifc_top.sv ] $outputDir/soc_ifc_top.sv
+exec sed -i {/`ifdef CALIPTRA_FUSE_GRANULARITY_32/,/`endif/calways_comb soc_ifc_reg_hwif_in.CPTRA_HW_CONFIG.Fuse_Granularity.next = generic_input_wires[0][1];} $outputDir/soc_ifc_top.sv
+remove_files [ glob $caliptrartlDir/src/soc_ifc/rtl/soc_ifc_top.sv ]
+add_files $outputDir/soc_ifc_top.sv
+
+# Mark all Verilog sources as SystemVerilog because some of them have SystemVerilog syntax.
+set_property file_type SystemVerilog [get_files *.v]
+
+# Exception: caliptra_package_top.v needs to be Verilog to be included in a Block Diagram.
+set_property file_type Verilog [get_files  $fpgaDir/src/caliptra_package_top.v]
+
+# Set caliptra_package_top as top in case next steps fail so that the top is something useful.
+set_property top caliptra_package_axi_top [current_fileset]
+
+# Create block diagram that includes an instance of caliptra_package_top
+create_bd_design "caliptra_package_bd"
+create_bd_cell -type module -reference caliptra_package_axi_top caliptra_package_top_0
+
+save_bd_design
+close_bd_design [get_bd_designs caliptra_package_bd]
+
+# Package IP
+puts "Fileset when packaging: [current_fileset]"
+puts "\n\nVERILOG DEFINES: [get_property verilog_define [current_fileset]]"
+ipx::package_project -root_dir $caliptrapackageDir -vendor design -library user -taxonomy /UserIP -import_files
+
+# IP import flattens sources, but these includes require their subdirectories.
+set rtlFileGroups [concat \
+    [ipx::get_file_groups xilinx_anylanguagesynthesis* -of_objects [ipx::current_core]] \
+    [ipx::get_file_groups xilinx_anylanguagebehavioralsimulation* -of_objects [ipx::current_core]]]
+if {[llength $rtlFileGroups] != 2} {
+    error "Expected synthesis and simulation file groups in the packaged Caliptra IP"
+}
+foreach {includePath sourcePath} [list \
+    lib/el2_assert.sv $caliptrartlDir/src/riscv_core/veer_el2/rtl/lib/el2_assert.sv \
+    generated/usb_ocp_recovery_reg_addr_defs.svh $usbDir/integration/rtl/generated/usb_ocp_recovery_reg_addr_defs.svh] {
+    set packagedPath src/$includePath
+    file mkdir [file dirname $caliptrapackageDir/$packagedPath]
+    file copy -force $sourcePath $caliptrapackageDir/$packagedPath
+    foreach group $rtlFileGroups {
+        set header [ipx::add_file $packagedPath $group]
+        set_property type systemVerilogSource $header
+        set_property is_include true $header
+    }
+}
+
+# Infer interfaces
+ipx::infer_bus_interfaces xilinx.com:interface:bram_rtl:1.0 [ipx::current_core]
+ipx::add_bus_parameter MASTER_TYPE [ipx::get_bus_interfaces rom_backdoor -of_objects [ipx::current_core]]
+ipx::add_bus_parameter MASTER_TYPE [ipx::get_bus_interfaces mcu_rom_backdoor -of_objects [ipx::current_core]]
+ipx::add_bus_parameter MASTER_TYPE [ipx::get_bus_interfaces otp_mem_backdoor -of_objects [ipx::current_core]]
+# Associate clocks to busses
+ipx::associate_bus_interfaces -busif S_AXI_WRAPPER -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif S_AXI_CALIPTRA -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif M_AXI_CALIPTRA -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif rom_backdoor -clock rom_backdoor_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif mcu_rom_backdoor -clock mcu_rom_backdoor_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif otp_mem_backdoor -clock otp_mem_backdoor_clk [ipx::current_core]
+
+ipx::associate_bus_interfaces -busif M_AXI_MCU_IFU -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif M_AXI_MCU_LSU -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif M_AXI_MCU_SB -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif S_AXI_MCI -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif S_AXI_MCU_ROM -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif S_AXI_OTP -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif S_AXI_LCC -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif S_AXI_USB_COMBO -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif S_AXI_USB_DEV0_MEM -clock core_clk [ipx::current_core]
+# Different clock used for I3C
+ipx::associate_bus_interfaces -busif S_AXI_I3C -clock i3c_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif S_AXI_I3C_SPARE -clock i3c_clk [ipx::current_core]
+
+# Other packager settings
+set_property name caliptra_package_top [ipx::current_core]
+set_property core_revision 1 [ipx::current_core]
+set_property PAYMENT_REQUIRED FALSE [ipx::current_core]
+ipx::update_source_project_archive -component [ipx::current_core]
+ipx::create_xgui_files [ipx::current_core]
+ipx::update_checksums [ipx::current_core]
+ipx::check_integrity [ipx::current_core]
+ipx::save_core [ipx::current_core]
+
+# Close caliptra_package_project
+close_project

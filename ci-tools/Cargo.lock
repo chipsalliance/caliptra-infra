@@ -230,6 +230,7 @@ dependencies = [
  "idna_adapter",
  "reqwest",
  "serde",
+ "serde_json",
  "serde_with",
  "sha2",
  "tar",
