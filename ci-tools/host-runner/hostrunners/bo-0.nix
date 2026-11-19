@@ -1,10 +1,21 @@
 {
   config,
   pkgs,
+  rtool,
+  fpga-boss,
   user,
-  fpga-boss-script,
   ...
 }:
+let
+  scripts = import ../scripts.nix {
+    inherit
+      pkgs
+      rtool
+      fpga-boss
+      user
+      ;
+  };
+in
 {
   systemd.user.services.zcu-0 = {
     enable = true;
@@ -14,7 +25,7 @@
 
     serviceConfig = {
       Type = "simple";
-      ExecStart = "${fpga-boss-script}/bin/fpga.sh";
+      ExecStart = "${scripts.fpga-boss-script}/bin/fpga.sh";
       Restart = "on-failure";
       RestartSec = "15s";
       Environment = [

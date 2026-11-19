@@ -2,8 +2,6 @@
 
 This directory consolidates all Caliptra FPGA wrapper configurations, Vivado build scripts, and pinned RTL submodules into a single flat layout organized by hardware release (`1.x`, `2.0`, `2.1`, `2.2`).
 
-> **Legacy note:** [`hw/fpga/`](fpga/README.md) is retained only for `.github/workflows/fpga-image.yml` (`create_boot_bin.sh` / PetaLinux `BOOT.BIN` builds).
-
 ## Target Directories & Submodules
 
 | Target | Board / Part | Source Repo / Branch | RTL / Subsystem Submodule Path(s) & Pinned Commits |

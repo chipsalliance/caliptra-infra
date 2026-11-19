@@ -121,13 +121,11 @@ Use the udev tools to figure out the `idVendor` and `idProduct` attributes of th
 
 # Download FPGA Image
 
-Download the latest FPGA image from [GitHub](https://github.com/chipsalliance/caliptra-sw/actions/workflows/fpga-image.yml). This job is scheduled to run once a week.
+Host runners automatically pull the latest `ci` and `dev` FPGA SD card images from [`chipsalliance/caliptra-infra` (`fpga-image.yml`)](https://github.com/chipsalliance/caliptra-infra/actions/workflows/fpga-image.yml) via the `sync-images` timer (`~/ci-images/` and `~/dev-images/`), or on demand via `download-image <artifact_name>`.
 
-This image should be copied to the host runner and stored at `$HOME/zcu104.img`.
+For ZCU-104s (`zcu104.img` / `caliptra-fpga-image-zcu104.img`) this image does not contain a bitstream; the GitHub job is responsible for writing it.
 
-For ZCU-104s this image does not contain a bitstream, the GitHub job is responsible for writing it.
-
-For VCK-190s this image _does_ include the bitstream. This is because it needs to be present on device boot.
+For VCK-190s (`caliptra-fpga-image-core.img` / `caliptra-fpga-image-subsystem.img`) this image includes the base boot PDI (`BOOT.BIN`) required at device boot.
 
 
 # Connect an FPGA to the host runner

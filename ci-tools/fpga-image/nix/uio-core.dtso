@@ -1,0 +1,17 @@
+// Licensed under the Apache-2.0 license
+//
+// Device Tree fragment defining the Caliptra `core` UIO memory regions
+// (`/dev/uio0`) via mainline Linux `uio_pdrv_genirq` (`generic-uio`).
+
+&amba_pl {
+	caliptra_uio_0: caliptra-fpga-uio-dev@a4010000 {
+		compatible = "generic-uio";
+		linux,uio-name = "caliptra-fpga-uio-dev";
+		reg = <0x0 0xa4010000 0x0 0x00010000>,
+		      <0x0 0xa4100000 0x0 0x00100000>,
+		      <0x0 0xb0000000 0x0 0x00018000>;
+		reg-names = "fpga_wrapper",
+		            "caliptra",
+		            "rom";
+	};
+};
