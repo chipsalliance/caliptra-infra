@@ -4,6 +4,7 @@ mod find_usb_block_device;
 mod fpga_jtag;
 mod ftdi;
 mod ftdi_uart;
+mod health;
 mod sd_mux;
 mod tty;
 mod usb_port_path;
@@ -15,7 +16,7 @@ use libftdi1_sys::ftdi_interface;
 use std::{
     ffi::OsString,
     fs::{File, OpenOptions},
-    io::{stdout, BufRead, BufReader, Error, ErrorKind, Lines, Read, Seek, SeekFrom, Write},
+    io::{stdout, Error, ErrorKind, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     process::Stdio,
     time::{Duration, Instant},
@@ -23,11 +24,21 @@ use std::{
 
 pub(crate) use fpga_jtag::{FpgaJtag, FpgaReset};
 pub(crate) use ftdi::FtdiCtx;
+use ftdi_uart::{UartEvent, UartLineStream};
+use health::{FpgaInfo, StatusTracker};
 use sd_mux::{SDWire, SdMux, SdMuxTarget, UsbsdMux};
 pub(crate) use usb_port_path::UsbPortPath;
 
 // 3 hours
 const JOB_TIMEOUT: Duration = Duration::from_secs(10_800);
+const BOOT_TIMEOUT: Duration = Duration::from_secs(180);
+const UART_TICK_TIMEOUT: Duration = Duration::from_secs(5);
+const HEALTH_HTTP_TIMEOUT: Duration = Duration::from_secs(3);
+const IDLE_HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(15);
+const IDLE_RUNNER_GRACE_PERIOD: Duration = Duration::from_secs(20);
+const BUSY_HEALTH_POLL_INTERVAL: Duration = Duration::from_secs(30);
+const COMMAND_INPUT_SENTINEL: &str = "36668aa492b1c83cdd3ade8466a0153d --- Command input";
+const ACTION_COMPLETE_SENTINEL: &str = "3297327285280f1ffb8b57222e0a5033 --- ACTION IS COMPLETE";
 
 fn cli() -> clap::Command<'static> {
     clap::Command::new("fpga-boss")
@@ -65,6 +76,22 @@ fn cli() -> clap::Command<'static> {
         .subcommand(clap::Command::new("serve")
             .arg(arg!(<IMAGE_FILENAME>).value_parser(value_parser!(PathBuf)))
             .arg(arg!(<CMD> ...).value_parser(value_parser!(OsString)).help("The command (and arguments) to read jitconfig entries from")))
+        .subcommand(clap::Command::new("health")
+            .about("Query HTTP /healthz on an FPGA running caliptra-fpga-healthd")
+            .arg(arg!(<IP> "IP address of the FPGA").value_parser(value_parser!(String)))
+            .arg(arg!(--"port" [PORT] "Port caliptra-fpga-healthd listens on")
+                .default_value("8080")
+                .value_parser(value_parser!(u16)))
+            .arg(arg!(--"json" "Print raw JSON").takes_value(false)))
+        .subcommand(clap::Command::new("status")
+            .about("Show health and runner state of all fpga-boss instances on this host")
+            .arg(arg!(--"live" "Query live /healthz from each board with a known IP").takes_value(false))
+            .arg(arg!(--"json" "Print JSON output").takes_value(false)))
+        .subcommand(clap::Command::new("status-server")
+            .about("Serve HTTP JSON status across all fpga-boss instances on this host")
+            .arg(arg!(--"listen" [ADDR] "Socket address to bind")
+                .default_value("0.0.0.0:8081")
+                .value_parser(value_parser!(String))))
 }
 
 fn main() {
@@ -185,59 +212,266 @@ fn check_for_kernel_panic(input: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-fn log_uart_until<R: BufRead>(
-    lines: &mut Lines<R>,
-    needle: &str,
-    error_parser: impl Fn(&str) -> std::io::Result<()>,
-) -> std::io::Result<()> {
-    log_uart_until_helper(lines, needle, None, Some(error_parser))
-}
-
-fn log_uart_until_with_timeout<R: BufRead>(
-    lines: &mut Lines<R>,
-    needle: &str,
-    timeout: Duration,
-) -> std::io::Result<()> {
-    log_uart_until_helper(
-        lines,
-        needle,
-        Some(timeout),
-        None::<fn(&str) -> std::io::Result<()>>,
-    )
-}
-
-fn log_uart_until_helper<R: BufRead>(
-    lines: &mut Lines<R>,
-    needle: &str,
-    timeout: Option<Duration>,
-    error_parser: Option<impl Fn(&str) -> std::io::Result<()>>,
-) -> std::io::Result<()> {
-    let start = Instant::now();
-    for line in lines.by_ref() {
-        match line {
-            Ok(line) => {
-                println!("UART: {}", line);
-                if line.contains(needle) {
-                    return Ok(());
-                }
-                if let Some(ref error_parser) = error_parser {
-                    error_parser(&line)?;
-                }
+fn poll_health_tick(
+    tracker: &mut StatusTracker,
+    info: &FpgaInfo,
+    phase: &str,
+    require_runner_alive: bool,
+) -> bool {
+    match health::fetch_healthz(&info.ip, info.health_port, HEALTH_HTTP_TIMEOUT) {
+        Ok((http_status, snap)) => {
+            let runner_ok =
+                !require_runner_alive || snap.runner_listener_alive || snap.runner_busy;
+            if snap.healthy && runner_ok {
+                tracker.record_health_ok(http_status, snap);
+                true
+            } else {
+                let reason = if !snap.healthy {
+                    format!(
+                        "{phase} healthz unhealthy (HTTP {http_status}): {:?}",
+                        snap.reasons
+                    )
+                } else {
+                    format!("{phase} runner_listener_not_alive")
+                };
+                eprintln!("{reason}");
+                tracker.record_health_failure(Some(http_status), Some(snap), reason);
+                false
             }
-            // If no time out was configured, swallow this error.
-            Err(e) if e.kind() == ErrorKind::TimedOut => {
-                if let Some(timeout) = timeout {
-                    if start.elapsed() > timeout {
-                        return Err(e);
+        }
+        Err(e) => {
+            let reason = format!("{phase} healthz poll failed: {e}");
+            eprintln!("{reason}");
+            tracker.record_health_failure(None, None, reason);
+            false
+        }
+    }
+}
+
+fn wait_for_boot<R: Read>(
+    uart_stream: &mut UartLineStream<R>,
+    tracker: &mut StatusTracker,
+    timeout: Duration,
+) -> anyhow::Result<bool> {
+    let start = Instant::now();
+    let mut dhcp_failed = false;
+    loop {
+        if start.elapsed() >= timeout {
+            eprintln!("Timed out waiting for FPGA to boot!");
+            tracker.set_error("BOOT_TIMEOUT", "Timed out waiting for FPGA to boot");
+            return Ok(false);
+        }
+        match uart_stream.next_event()? {
+            UartEvent::Line(line) => {
+                println!("UART: {}", line);
+                if let Some(info) = health::parse_fpga_info_line(&line) {
+                    if info.ip.trim().is_empty() {
+                        eprintln!("FPGA reported empty IP in CALIPTRA_FPGA_INFO (DHCP failed)");
+                        dhcp_failed = true;
+                        tracker.set_error(
+                            "DHCP_FAILED",
+                            "FPGA reported empty IP in CALIPTRA_FPGA_INFO",
+                        );
+                    } else {
+                        tracker.set_fpga_info(info);
                     }
                 }
+                if line.contains(COMMAND_INPUT_SENTINEL) {
+                    return Ok(!dhcp_failed);
+                }
             }
-            Err(e) => {
-                println!("UART error: {}", e);
+            UartEvent::TickTimeout => {}
+            UartEvent::Eof => {
+                return Err(anyhow!("unexpected EOF from FPGA UART while booting"));
             }
         }
     }
-    Err(Error::new(ErrorKind::UnexpectedEof, "unexpected EOF"))
+}
+
+fn verify_pre_job_health(tracker: &mut StatusTracker) -> bool {
+    let Some(info) = tracker.fpga_info().cloned() else {
+        println!("No CALIPTRA_FPGA_INFO received on UART; proceeding in legacy UART-only mode");
+        return true;
+    };
+
+    for attempt in 1..=3 {
+        if poll_health_tick(tracker, &info, &format!("pre-job ({attempt}/3)"), false) {
+            return true;
+        }
+        if attempt < 3 {
+            std::thread::sleep(Duration::from_secs(2));
+        }
+    }
+    tracker.set_state("UNHEALTHY");
+    false
+}
+
+fn wait_for_registration<R: Read>(
+    uart_stream: &mut UartLineStream<R>,
+    tracker: &mut StatusTracker,
+    timeout: Duration,
+) -> anyhow::Result<bool> {
+    let start = Instant::now();
+    loop {
+        if start.elapsed() >= timeout {
+            eprintln!("Timed out waiting for FPGA to connect to Github!");
+            tracker.set_error(
+                "GITHUB_CONNECT_TIMEOUT",
+                "Timed out waiting for FPGA to connect to GitHub",
+            );
+            return Ok(false);
+        }
+        match uart_stream.next_event()? {
+            UartEvent::Line(line) => {
+                println!("UART: {}", line);
+                if line.contains("Listening for Jobs") {
+                    return Ok(true);
+                }
+                if line.contains(COMMAND_INPUT_SENTINEL) {
+                    eprintln!("FPGA rebooted unexpectedly while registering!");
+                    tracker.set_error(
+                        "UNEXPECTED_REBOOT",
+                        "FPGA rebooted unexpectedly while registering",
+                    );
+                    return Ok(false);
+                }
+                if let Err(e) = active_runner_error_checks(&line) {
+                    eprintln!("Runner error while registering: {e}");
+                    tracker.set_error("RUNNER_ERROR", e.to_string());
+                    return Ok(false);
+                }
+            }
+            UartEvent::TickTimeout => {}
+            UartEvent::Eof => {
+                return Err(anyhow!("unexpected EOF from FPGA UART while registering"));
+            }
+        }
+    }
+}
+
+fn wait_for_job_start<R: Read>(
+    uart_stream: &mut UartLineStream<R>,
+    tracker: &mut StatusTracker,
+) -> anyhow::Result<bool> {
+    wait_for_job_start_with(
+        uart_stream,
+        tracker,
+        IDLE_HEALTH_POLL_INTERVAL,
+        IDLE_RUNNER_GRACE_PERIOD,
+    )
+}
+
+fn wait_for_job_start_with<R: Read>(
+    uart_stream: &mut UartLineStream<R>,
+    tracker: &mut StatusTracker,
+    poll_interval: Duration,
+    grace_period: Duration,
+) -> anyhow::Result<bool> {
+    tracker.clear_error_and_set_state("IDLE");
+    let idle_start = Instant::now();
+    let mut last_health_poll = Instant::now();
+    loop {
+        match uart_stream.next_event()? {
+            UartEvent::Line(line) => {
+                println!("UART: {}", line);
+                if line.contains("Running job") {
+                    return Ok(true);
+                }
+                if let Some(info) = health::parse_fpga_info_line(&line) {
+                    if !info.ip.trim().is_empty() {
+                        tracker.set_fpga_info(info);
+                    }
+                }
+                if line.contains(COMMAND_INPUT_SENTINEL) {
+                    eprintln!("FPGA rebooted unexpectedly while IDLE!");
+                    tracker.set_error("UNEXPECTED_REBOOT", "FPGA rebooted unexpectedly while IDLE");
+                    return Ok(false);
+                }
+                if let Err(e) = active_runner_error_checks(&line) {
+                    eprintln!("Runner error while IDLE: {e}");
+                    tracker.set_error("RUNNER_ERROR", e.to_string());
+                    return Ok(false);
+                }
+            }
+            UartEvent::TickTimeout => {}
+            UartEvent::Eof => {
+                return Err(anyhow!("unexpected EOF from FPGA UART while IDLE"));
+            }
+        }
+
+        if last_health_poll.elapsed() >= poll_interval {
+            if let Some(info) = tracker.fpga_info().cloned() {
+                last_health_poll = Instant::now();
+                let require_runner = idle_start.elapsed() >= grace_period;
+                poll_health_tick(tracker, &info, "IDLE", require_runner);
+                if tracker.consecutive_health_failures() >= 2 {
+                    eprintln!("FPGA failed 2 consecutive IDLE health checks; resetting");
+                    tracker.set_state("UNHEALTHY");
+                    return Ok(false);
+                }
+            }
+        }
+    }
+}
+
+fn wait_for_job_complete<R: Read>(
+    uart_stream: &mut UartLineStream<R>,
+    tracker: &mut StatusTracker,
+    timeout: Duration,
+) -> anyhow::Result<bool> {
+    wait_for_job_complete_with(uart_stream, tracker, timeout, BUSY_HEALTH_POLL_INTERVAL)
+}
+
+fn wait_for_job_complete_with<R: Read>(
+    uart_stream: &mut UartLineStream<R>,
+    tracker: &mut StatusTracker,
+    timeout: Duration,
+    poll_interval: Duration,
+) -> anyhow::Result<bool> {
+    tracker.set_state("BUSY");
+    let busy_start = Instant::now();
+    let mut last_health_poll = Instant::now();
+    loop {
+        if busy_start.elapsed() >= timeout {
+            eprintln!("Timed out waiting for FPGA to complete job!");
+            tracker.set_error("JOB_TIMEOUT", "Timed out waiting for FPGA to complete job");
+            return Ok(false);
+        }
+        match uart_stream.next_event()? {
+            UartEvent::Line(line) => {
+                println!("UART: {}", line);
+                if line.contains(ACTION_COMPLETE_SENTINEL) {
+                    return Ok(true);
+                }
+                if line.contains(COMMAND_INPUT_SENTINEL) {
+                    eprintln!("FPGA rebooted mid-job!");
+                    tracker.set_error("JOB_REBOOTED", "FPGA rebooted mid-job");
+                    return Ok(false);
+                }
+                if let Err(e) = active_runner_error_checks(&line) {
+                    eprintln!("Runner/kernel error during job: {e}");
+                    tracker.set_error("RUNNER_ERROR", e.to_string());
+                    return Ok(false);
+                }
+            }
+            UartEvent::TickTimeout => {}
+            UartEvent::Eof => {
+                return Err(anyhow!("unexpected EOF from FPGA UART during job"));
+            }
+        }
+
+        if last_health_poll.elapsed() >= poll_interval {
+            if let Some(info) = tracker.fpga_info().cloned() {
+                last_health_poll = Instant::now();
+                poll_health_tick(tracker, &info, "BUSY", false);
+                if tracker.consecutive_health_failures() >= 3 {
+                    eprintln!("FPGA failed 3 consecutive BUSY health checks; resetting");
+                    tracker.set_state("UNHEALTHY");
+                    return Ok(false);
+                }
+            }
+        }
+    }
 }
 
 fn get_sd_mux(
@@ -281,6 +515,21 @@ fn main_impl() -> anyhow::Result<()> {
 
     let get_fpga_ftdi = || FpgaJtag::open(get_zcu104_path()?);
     match matches.subcommand() {
+        Some(("health", sub_matches)) => {
+            let ip = sub_matches.get_one::<String>("IP").unwrap();
+            let port = *sub_matches.get_one::<u16>("port").unwrap();
+            let json_out = sub_matches.is_present("json");
+            health::run_health_command(ip, port, json_out)?;
+        }
+        Some(("status", sub_matches)) => {
+            let live = sub_matches.is_present("live");
+            let json_out = sub_matches.is_present("json");
+            health::run_status_command(live, json_out)?;
+        }
+        Some(("status-server", sub_matches)) => {
+            let listen = sub_matches.get_one::<String>("listen").unwrap();
+            health::run_status_server(listen)?;
+        }
         Some(("mode", sub_matches)) => {
             let mut sd_mux = get_sd_mux(sdwire, usbsdmux)?;
             let mut fpga = get_fpga_ftdi();
@@ -396,20 +645,24 @@ fn main_impl() -> anyhow::Result<()> {
             let mut fpga = get_fpga_ftdi()?;
             let sd_dev_path = sd_mux.get_sd_dev_path()?;
 
-            let _guard = StatusGuard;
+            let identifier =
+                std::env::var("IDENTIFIER").unwrap_or_else(|_| "unknown".to_string());
+            let mut tracker = StatusTracker::new(identifier);
 
             'outer: loop {
                 if let Some(home_dir) = std::env::var_os("HOME") {
                     let stop_file = Path::new(&home_dir).join(".fpga-boss-stop");
                     if stop_file.exists() {
                         println!("Stop file {:?} found, exiting gracefully", stop_file);
-                        update_status("STOPPED");
+                        tracker.set_state("STOPPED");
+                        tracker.mark_stopped_cleanly();
                         break 'outer;
                     }
                 }
 
+                tracker.start_new_cycle();
                 println!("Putting FPGA into reset");
-                update_status("RESETTING");
+                tracker.set_state("RESETTING");
                 fpga.set_reset(FpgaReset::Reset)?;
                 sd_mux.set_target(SdMuxTarget::Host)?;
 
@@ -427,33 +680,25 @@ fn main_impl() -> anyhow::Result<()> {
                     std::thread::sleep(Duration::from_millis(100));
                 }
 
-                let boot_timeout = Duration::from_secs(180);
                 let (uart_rx, mut uart_tx) = ftdi_uart::open_blocking(
                     get_zcu104_path()?,
                     ftdi_interface::INTERFACE_B,
-                    Some(boot_timeout),
+                    Some(UART_TICK_TIMEOUT),
                 )?;
+                let mut uart_stream = UartLineStream::new(uart_rx);
 
                 println!("Taking FPGA out of reset");
-                update_status("BOOTING");
+                tracker.set_state("BOOTING");
                 sd_mux.set_target(SdMuxTarget::Dut)?;
                 std::thread::sleep(Duration::from_millis(100));
                 fpga.set_reset(FpgaReset::Run)?;
 
-                let mut uart_lines = BufReader::new(uart_rx).lines();
-                // FPGA has `fpga_timeout: Duration` to boot until we reset and try again.
-                match log_uart_until_with_timeout(
-                    &mut uart_lines,
-                    "36668aa492b1c83cdd3ade8466a0153d --- Command input",
-                    boot_timeout,
-                ) {
-                    Err(e) if e.kind() == ErrorKind::TimedOut => {
-                        eprintln!("Timed out waiting for FPGA to boot!");
-                        update_status("BOOT_TIMEOUT");
-                        continue 'outer;
-                    }
-                    Err(e) => Err(e)?,
-                    _ => (),
+                if !wait_for_boot(&mut uart_stream, &mut tracker, BOOT_TIMEOUT)? {
+                    continue 'outer;
+                }
+
+                if !verify_pre_job_health(&mut tracker) {
+                    continue 'outer;
                 }
 
                 if cached_token.is_none() {
@@ -461,7 +706,7 @@ fn main_impl() -> anyhow::Result<()> {
                         sub_matches.get_many::<OsString>("CMD").unwrap().collect();
 
                     println!("Executing command {:?} to retrieve jitconfig", command_args);
-                    update_status("WAITING_FOR_JOB");
+                    tracker.set_state("WAITING_FOR_JOB");
                     let output = std::process::Command::new(command_args[0])
                         .args(&command_args[1..])
                         .stderr(Stdio::inherit())
@@ -469,13 +714,13 @@ fn main_impl() -> anyhow::Result<()> {
                     if !output.status.success() {
                         println!("Error retrieving jitconfig: stdout:");
                         stdout().write_all(&output.stdout)?;
-                        update_status("JIT_CONFIG_ERROR");
-                        continue;
+                        tracker.set_error("JIT_CONFIG_ERROR", "jitconfig command failed");
+                        continue 'outer;
                     }
                     cached_token = Some(output.stdout);
                 }
 
-                update_status("REGISTERING");
+                tracker.set_state("REGISTERING");
                 uart_tx.write_all(b"runner-jitconfig ")?;
                 uart_tx.write_all(
                     &cached_token
@@ -484,77 +729,270 @@ fn main_impl() -> anyhow::Result<()> {
                 )?;
                 uart_tx.write_all(b"\n")?;
 
-                // FGPA has `boot_timeout: Duration` to connect to GitHub until we reset and try again.
-                match log_uart_until_with_timeout(
-                    &mut uart_lines,
-                    "Listening for Jobs",
-                    boot_timeout,
-                ) {
-                    Err(e) if e.kind() == ErrorKind::TimedOut => {
-                        eprintln!("Timed out waiting for FPGA to connect to Github!");
-                        update_status("GITHUB_CONNECT_TIMEOUT");
-                        continue 'outer;
-                    }
-                    Err(e) => Err(e)?,
-                    _ => (),
+                if !wait_for_registration(&mut uart_stream, &mut tracker, BOOT_TIMEOUT)? {
+                    continue 'outer;
                 }
 
                 cached_token = None;
 
-                // The period of time we wait to receive a job is undefined so a timeout is not
-                // appropriate.
-                update_status("IDLE");
-                log_uart_until(&mut uart_lines, "Running job", active_runner_error_checks)?;
+                if !wait_for_job_start(&mut uart_stream, &mut tracker)? {
+                    continue 'outer;
+                }
 
-                // Now the job is started, so we want to enforce a timeout with enough time for the
-                // job to complete.
-                update_status("BUSY");
-                match log_uart_until_with_timeout(
-                    &mut uart_lines,
-                    "3297327285280f1ffb8b57222e0a5033 --- ACTION IS COMPLETE",
-                    JOB_TIMEOUT,
-                ) {
-                    Err(e) if e.kind() == ErrorKind::TimedOut => {
-                        eprintln!("Timed out waiting for FPGA to complete job!");
-                        update_status("JOB_TIMEOUT");
-                        continue 'outer;
-                    }
-                    Err(e) => Err(e)?,
-                    _ => (),
+                if !wait_for_job_complete(&mut uart_stream, &mut tracker, JOB_TIMEOUT)? {
+                    continue 'outer;
                 }
             }
-            update_status("STOPPED");
         }
         _ => unreachable!(),
     }
     Ok(())
 }
 
-struct StatusGuard;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::VecDeque;
+    use std::net::TcpListener;
+    use std::thread;
+    use tempfile::TempDir;
 
-impl Drop for StatusGuard {
-    fn drop(&mut self) {
-        update_status("OFFLINE");
+    struct SliceStream(VecDeque<u8>);
+
+    impl Read for SliceStream {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            let mut n = 0;
+            while n < buf.len() {
+                let Some(b) = self.0.pop_front() else {
+                    break;
+                };
+                buf[n] = b;
+                n += 1;
+            }
+            Ok(n)
+        }
     }
-}
 
-fn update_status(state: &str) {
-    let identifier = std::env::var("IDENTIFIER").unwrap_or_else(|_| "unknown".to_string());
-    
-    let dir = if let Ok(runtime_dir) = std::env::var("XDG_RUNTIME_DIR") {
-        PathBuf::from(runtime_dir).join("fpga-boss")
-    } else if let Some(home_dir) = std::env::var_os("HOME") {
-        Path::new(&home_dir).join(".local/state/fpga-boss")
-    } else {
-        return;
-    };
+    #[test]
+    fn test_boot_and_pre_job_health_with_mock_healthd() {
+        let dir = TempDir::new().unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
 
-    if let Err(e) = std::fs::create_dir_all(&dir) {
-        eprintln!("Failed to create status directory {:?}: {e}", dir);
-        return;
+        let body = serde_json::json!({
+            "healthy": true,
+            "reasons": [],
+            "hostname": "caliptra-fpga",
+            "mode": "ci",
+            "variant": "core",
+            "build_commit": "deadbeef",
+            "kernel_tainted": 0,
+            "net_end0_carrier": 1,
+            "uio_devices": ["uio0"],
+            "runner_listener_alive": false,
+            "runner_busy": false
+        })
+        .to_string();
+
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut buf = [0_u8; 512];
+            let _ = stream.read(&mut buf);
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(),
+                body
+            );
+            stream.write_all(resp.as_bytes()).unwrap();
+        });
+
+        let uart_log = format!(
+            "Booting Linux...\nCALIPTRA_FPGA_INFO {{\"ip\":\"{}\",\"health_port\":{},\"variant\":\"core\"}}\n{}\n",
+            addr.ip(),
+            addr.port(),
+            COMMAND_INPUT_SENTINEL
+        );
+        let mut uart_stream = UartLineStream::new(SliceStream(uart_log.into_bytes().into()));
+        let mut tracker =
+            StatusTracker::with_state_dir("test-board", Some(dir.path().to_path_buf()));
+
+        assert!(wait_for_boot(&mut uart_stream, &mut tracker, Duration::from_secs(5)).unwrap());
+        assert!(verify_pre_job_health(&mut tracker));
+        handle.join().unwrap();
+
+        assert_eq!(tracker.record().http_status, Some(200));
+        assert_eq!(
+            tracker.record().health.as_ref().unwrap().build_commit,
+            "deadbeef"
+        );
+        tracker.mark_stopped_cleanly();
     }
-    let file_path = dir.join(format!("{}.status", identifier));
-    if let Err(e) = std::fs::write(&file_path, state) {
-        eprintln!("Failed to write status file {:?}: {e}", file_path);
+
+    #[test]
+    fn test_boot_empty_ip_marks_dhcp_failed() {
+        let dir = TempDir::new().unwrap();
+        let uart_log = format!(
+            "CALIPTRA_FPGA_INFO {{\"ip\":\"\",\"health_port\":8080,\"variant\":\"zcu104\"}}\n{}\n",
+            COMMAND_INPUT_SENTINEL
+        );
+        let mut uart_stream = UartLineStream::new(SliceStream(uart_log.into_bytes().into()));
+        let mut tracker =
+            StatusTracker::with_state_dir("test-zcu", Some(dir.path().to_path_buf()));
+
+        assert!(!wait_for_boot(&mut uart_stream, &mut tracker, Duration::from_secs(5)).unwrap());
+        assert_eq!(tracker.record().state, "DHCP_FAILED");
+        tracker.mark_stopped_cleanly();
+    }
+
+    #[test]
+    fn test_busy_unexpected_reboot_fails_fast() {
+        let dir = TempDir::new().unwrap();
+        let uart_log = format!("some job line\n{}\n", COMMAND_INPUT_SENTINEL);
+        let mut uart_stream = UartLineStream::new(SliceStream(uart_log.into_bytes().into()));
+        let mut tracker =
+            StatusTracker::with_state_dir("test-vck", Some(dir.path().to_path_buf()));
+
+        assert!(
+            !wait_for_job_complete(&mut uart_stream, &mut tracker, Duration::from_secs(60)).unwrap()
+        );
+        assert_eq!(tracker.record().state, "JOB_REBOOTED");
+        tracker.mark_stopped_cleanly();
+    }
+
+    enum TickStep {
+        Line(&'static [u8]),
+        Timeout,
+    }
+
+    struct TickReader(VecDeque<TickStep>);
+
+    impl Read for TickReader {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            match self.0.pop_front() {
+                Some(TickStep::Line(bytes)) => {
+                    let n = bytes.len().min(buf.len());
+                    buf[..n].copy_from_slice(&bytes[..n]);
+                    Ok(n)
+                }
+                Some(TickStep::Timeout) => Err(Error::new(ErrorKind::TimedOut, "tick")),
+                None => Ok(0),
+            }
+        }
+    }
+
+    #[test]
+    fn test_idle_and_busy_consecutive_health_failures_trigger_reset() {
+        let dir = TempDir::new().unwrap();
+
+        // IDLE: 2 consecutive polls with runner_listener_alive=false (after grace=0) -> UNHEALTHY
+        let idle_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let idle_addr = idle_listener.local_addr().unwrap();
+        let idle_body = serde_json::json!({
+            "healthy": true,
+            "reasons": [],
+            "hostname": "caliptra-fpga",
+            "mode": "ci",
+            "variant": "subsystem",
+            "build_commit": "abc",
+            "runner_listener_alive": false,
+            "runner_busy": false
+        })
+        .to_string();
+        let idle_handle = thread::spawn(move || {
+            for _ in 0..2 {
+                let (mut stream, _) = idle_listener.accept().unwrap();
+                let mut buf = [0_u8; 512];
+                let _ = stream.read(&mut buf);
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    idle_body.len(),
+                    idle_body
+                );
+                stream.write_all(resp.as_bytes()).unwrap();
+            }
+        });
+
+        let mut tracker =
+            StatusTracker::with_state_dir("test-idle", Some(dir.path().to_path_buf()));
+        tracker.set_fpga_info(FpgaInfo {
+            ip: idle_addr.ip().to_string(),
+            health_port: idle_addr.port(),
+            variant: "subsystem".to_string(),
+        });
+        let mut idle_stream = UartLineStream::new(TickReader(VecDeque::from([
+            TickStep::Timeout,
+            TickStep::Timeout,
+        ])));
+        assert!(
+            !wait_for_job_start_with(
+                &mut idle_stream,
+                &mut tracker,
+                Duration::ZERO,
+                Duration::ZERO,
+            )
+            .unwrap()
+        );
+        idle_handle.join().unwrap();
+        assert_eq!(tracker.record().state, "UNHEALTHY");
+        assert_eq!(tracker.record().consecutive_health_failures, 2);
+        assert_eq!(
+            tracker.record().last_error.as_deref(),
+            Some("IDLE runner_listener_not_alive")
+        );
+        tracker.mark_stopped_cleanly();
+
+        // BUSY: 3 consecutive 503 polls -> UNHEALTHY
+        let busy_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let busy_addr = busy_listener.local_addr().unwrap();
+        let busy_body = serde_json::json!({
+            "healthy": false,
+            "reasons": ["low_memory"],
+            "hostname": "caliptra-fpga",
+            "mode": "ci",
+            "variant": "subsystem",
+            "build_commit": "abc",
+            "runner_listener_alive": true,
+            "runner_busy": true
+        })
+        .to_string();
+        let busy_handle = thread::spawn(move || {
+            for _ in 0..3 {
+                let (mut stream, _) = busy_listener.accept().unwrap();
+                let mut buf = [0_u8; 512];
+                let _ = stream.read(&mut buf);
+                let resp = format!(
+                    "HTTP/1.1 503 Service Unavailable\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    busy_body.len(),
+                    busy_body
+                );
+                stream.write_all(resp.as_bytes()).unwrap();
+            }
+        });
+
+        let mut busy_tracker =
+            StatusTracker::with_state_dir("test-busy", Some(dir.path().to_path_buf()));
+        busy_tracker.set_fpga_info(FpgaInfo {
+            ip: busy_addr.ip().to_string(),
+            health_port: busy_addr.port(),
+            variant: "subsystem".to_string(),
+        });
+        let mut busy_stream = UartLineStream::new(TickReader(VecDeque::from([
+            TickStep::Line(b"running test\n"),
+            TickStep::Timeout,
+            TickStep::Timeout,
+        ])));
+        assert!(
+            !wait_for_job_complete_with(
+                &mut busy_stream,
+                &mut busy_tracker,
+                Duration::from_secs(60),
+                Duration::ZERO,
+            )
+            .unwrap()
+        );
+        busy_handle.join().unwrap();
+        assert_eq!(busy_tracker.record().state, "UNHEALTHY");
+        assert_eq!(busy_tracker.record().consecutive_health_failures, 3);
+        busy_tracker.mark_stopped_cleanly();
     }
 }

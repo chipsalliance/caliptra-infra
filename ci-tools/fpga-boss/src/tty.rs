@@ -124,7 +124,7 @@ mod tests {
         let mut len = 3;
         sm.process(&mut buf, &mut len, |ch| callback_invocations.push(ch));
         assert_eq!(&buf[..len], [b'H', b'i']);
-        assert_eq!(callback_invocations, vec![]);
+        assert_eq!(callback_invocations, Vec::<u8>::new());
 
         len = 2;
         buf = [b'q', b'W', 0x00, 0x00];

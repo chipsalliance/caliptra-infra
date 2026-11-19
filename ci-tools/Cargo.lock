@@ -249,6 +249,9 @@ dependencies = [
  "libftdi1-sys",
  "libusb1-sys",
  "rusb",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
