@@ -115,33 +115,6 @@ card or loopback cable is required on the VCK-190 to run High-Speed USB 2.0
 enumeration or hardware-assisted OCP USB Recovery v1.1 alongside I3C recovery.
 The IP packager preserves the `lib/` and `generated/` header paths used by
 the Core RTL and USB sources, so their relative includes resolve during synthesis.
-The subsystem SPI host and UART ports were removed upstream; MCU debug-FIFO and
-Caliptra Core log-FIFO logging remain independent of those peripherals.
-
-The FPGA overlays include the compatibility and USB fixes from
-[chipsalliance/caliptra-mcu-sw#2373](https://github.com/chipsalliance/caliptra-mcu-sw/pull/2373).
-In particular, the synchronizer overlay anchors each insertion to source text:
-reset values belong in the reset branch, while live endpoint metadata must be
-sampled on `FsClk`. Misplacing those samples in reset can leave EP0 inactive and
-cause repeated NAKs on the first SETUP transaction.
-
-After applying the overlay, the focused regression can be run in a scratch
-directory using Vivado's simulation tools (replace the paths below with absolute
-paths to this checkout):
-
-```shell
-cp /path/to/caliptra-infra/hw/2.2/caliptra-ss/third_party/usb2/src/usb_hub_composite_device/RTL/RTL/usb_synchronizer.m.vhdl .
-patch --batch --fuzz=0 usb_synchronizer.m.vhdl /path/to/caliptra-infra/hw/2.2/subsystem/fpga/src/usb_synchronizer_60mhz.patch
-xvhdl --2008 usb_synchronizer.m.vhdl /path/to/caliptra-infra/hw/2.2/subsystem/fpga/tests/usb_synchronizer_tb.vhdl
-xelab usb_synchronizer_tb -s usb_sync
-xsim usb_sync --runall
-```
-
-The test checks live endpoint metadata updates and reset recovery. It does not
-replace full synthesis, routing/timing closure, or a VCK190 enumeration test.
-The final MCU PR #2373 build passed synthesis but failed routing with congestion
-and node overlaps; those physical implementation results must be rechecked for
-the new infra build before treating its image as usable.
 
 ### Build boot.bin: ###
 
