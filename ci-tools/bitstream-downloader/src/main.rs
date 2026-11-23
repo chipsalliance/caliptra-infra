@@ -127,9 +127,6 @@ struct UploadBundleArgs {
 
 #[derive(Args, Debug)]
 struct BuildArgs {
-    /// Enable the opt-in dual-iTRNG lab image (2.2/subsystem only)
-    #[arg(long)]
-    dual_itrng: bool,
     /// Print commands without initializing submodules or invoking Vivado
     #[arg(long)]
     dry_run: bool,
@@ -286,7 +283,6 @@ async fn main() -> Result<()> {
                 &BuildOptions {
                     selector: args.selector,
                     dry_run: args.dry_run,
-                    dual_itrng: args.dual_itrng,
                     staging_dir: args.staging_dir,
                 },
             )?;

@@ -102,10 +102,17 @@ This script provides a number of configuration options for features that can be 
 For a non-segmented dual-iTRNG lab build using the infra CLI:
 
 ```shell
-cargo run --manifest-path ci-tools/Cargo.toml -p caliptra-bitstream-downloader -- build --dual-itrng --staging-dir /tmp/dual-itrng subsystem-2.2-standard
+cargo run --manifest-path ci-tools/Cargo.toml -p caliptra-bitstream-downloader -- build --staging-dir /tmp/dual-itrng subsystem-2.2-standard-dual-itrng
 ```
 
-The standard CI variants remain single-source. On a dual-capable image,
+Use `subsystem-2.2-segmented-dual-itrng` for a segmented dual-iTRNG build.
+Both are static build variants shown by `list`; they replace the `--dual-itrng`
+flag and must be selected by their full variant name. Aggregate selectors
+(`all`, `2.2`, and `2.2/subsystem`) and default CI matrices exclude them.
+An explicit workflow-dispatch `variant` input can select either lab image;
+neither is published to GCS.
+
+The ordinary CI variants remain single-source. On a dual-capable image,
 `status.dual_itrng_capable` (offset `0x000C`, bit 8) advertises the ES1 FIFO.
 `entropy_ctrl.itrng1_en` (offset `0x001C`, bit 0) defaults to zero; write it while
 both subsystem reset and power-good controls are low to select ES0+ES1.

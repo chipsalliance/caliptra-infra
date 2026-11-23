@@ -275,6 +275,12 @@ pub enum Variant {
     #[value(name = "subsystem-2.2-standard")]
     #[serde(rename = "subsystem-2.2-standard")]
     Subsystem2_2Standard,
+    #[value(name = "subsystem-2.2-segmented-dual-itrng")]
+    #[serde(rename = "subsystem-2.2-segmented-dual-itrng")]
+    Subsystem2_2SegmentedDualItrng,
+    #[value(name = "subsystem-2.2-standard-dual-itrng")]
+    #[serde(rename = "subsystem-2.2-standard-dual-itrng")]
+    Subsystem2_2StandardDualItrng,
 }
 
 impl Variant {
@@ -295,7 +301,16 @@ impl Variant {
         Self::Core2_2Standard,
         Self::Subsystem2_2Segmented,
         Self::Subsystem2_2Standard,
+        Self::Subsystem2_2SegmentedDualItrng,
+        Self::Subsystem2_2StandardDualItrng,
     ];
+
+    pub const fn requires_explicit_selection(self) -> bool {
+        matches!(
+            self,
+            Self::Subsystem2_2SegmentedDualItrng | Self::Subsystem2_2StandardDualItrng
+        )
+    }
 
     pub const fn as_str(&self) -> &'static str {
         match self {
@@ -315,6 +330,8 @@ impl Variant {
             Self::Core2_2Standard => "core-2.2-standard",
             Self::Subsystem2_2Segmented => "subsystem-2.2-segmented",
             Self::Subsystem2_2Standard => "subsystem-2.2-standard",
+            Self::Subsystem2_2SegmentedDualItrng => "subsystem-2.2-segmented-dual-itrng",
+            Self::Subsystem2_2StandardDualItrng => "subsystem-2.2-standard-dual-itrng",
         }
     }
 
@@ -560,6 +577,36 @@ impl Variant {
                 tclargs: &["BUILD=TRUE", "SEGMENTED=false"],
                 outputs: &["xsa_ss2p2_<ver>.xsa"],
             },
+            Self::Subsystem2_2SegmentedDualItrng => &VariantSpec {
+                variant: Self::Subsystem2_2SegmentedDualItrng,
+                release: Release::V2_2,
+                subtarget: Subtarget::V2_2Subsystem,
+                board: Board::Vck190,
+                hw_major_version: "2.2",
+                fpga_dir: "hw/2.2/subsystem/fpga",
+                submodule_path: "hw/2.2/caliptra-ss",
+                has_ss_commit: true,
+                segmented: true,
+                publish: false,
+                timeout_minutes: 1440,
+                tclargs: &["BUILD=TRUE", "SEGMENTED=true", "DUAL_ITRNG=TRUE"],
+                outputs: &["xsa_ss2p2_<ver>_segmented.xsa", "runtime_<ver>.pdi"],
+            },
+            Self::Subsystem2_2StandardDualItrng => &VariantSpec {
+                variant: Self::Subsystem2_2StandardDualItrng,
+                release: Release::V2_2,
+                subtarget: Subtarget::V2_2Subsystem,
+                board: Board::Vck190,
+                hw_major_version: "2.2",
+                fpga_dir: "hw/2.2/subsystem/fpga",
+                submodule_path: "hw/2.2/caliptra-ss",
+                has_ss_commit: true,
+                segmented: false,
+                publish: false,
+                timeout_minutes: 1440,
+                tclargs: &["BUILD=TRUE", "SEGMENTED=false", "DUAL_ITRNG=TRUE"],
+                outputs: &["xsa_ss2p2_<ver>.xsa"],
+            },
         }
     }
 }
@@ -695,7 +742,6 @@ pub enum BundleArtifacts {
 pub struct BuildOptions {
     pub selector: BuildSelector,
     pub dry_run: bool,
-    pub dual_itrng: bool,
     pub staging_dir: Option<PathBuf>,
 }
 
@@ -714,8 +760,15 @@ pub fn all_specs() -> impl Iterator<Item = &'static VariantSpec> {
     Variant::ALL.iter().map(|v| v.spec())
 }
 
+fn default_specs() -> impl Iterator<Item = &'static VariantSpec> {
+    all_specs().filter(|spec| !spec.variant.requires_explicit_selection())
+}
+
 pub fn select_variants(selector: BuildSelector) -> Vec<&'static VariantSpec> {
-    all_specs()
+    if let BuildSelector::Variant(v) = selector {
+        return vec![v.spec()];
+    }
+    default_specs()
         .filter(|spec| match selector {
             BuildSelector::All => true,
             BuildSelector::Release(r) => spec.release == r,
@@ -818,7 +871,7 @@ pub fn filter_dispatch_matrix(
             .map(VariantSpec::to_matrix_entry)
             .collect()
     } else {
-        all_specs().map(VariantSpec::to_matrix_entry).collect()
+        default_specs().map(VariantSpec::to_matrix_entry).collect()
     };
 
     if !include_standard {
@@ -986,8 +1039,8 @@ pub fn compute_ci_matrix(repo_root: &Path) -> Result<MatrixOutput> {
         };
 
     let include = match selection {
-        PushSelection::All => all_specs().map(VariantSpec::to_matrix_entry).collect(),
-        PushSelection::Subtargets(subtargets) => all_specs()
+        PushSelection::All => default_specs().map(VariantSpec::to_matrix_entry).collect(),
+        PushSelection::Subtargets(subtargets) => default_specs()
             .filter(|v| subtargets.contains(&v.subtarget))
             .map(VariantSpec::to_matrix_entry)
             .collect(),
@@ -1059,13 +1112,6 @@ fn copy_built_artifacts(build_dir: &Path, staging_dir: &Path) -> Result<usize> {
 
 pub fn run_build(repo_root: &Path, opts: &BuildOptions) -> Result<()> {
     let selected = select_variants(opts.selector);
-    if opts.dual_itrng
-        && selected
-            .iter()
-            .any(|spec| spec.subtarget != Subtarget::V2_2Subsystem)
-    {
-        bail!("--dual-itrng requires a 2.2/subsystem selector or variant");
-    }
     let vivado_bin = env::var("VIVADO_BIN")
         .ok()
         .filter(|s| !s.is_empty())
@@ -1149,10 +1195,7 @@ pub fn run_build(repo_root: &Path, opts: &BuildOptions) -> Result<()> {
         }
 
         let fpga_dir = repo_root.join(spec.fpga_dir);
-        let mut tclargs = spec.tclargs.to_vec();
-        if opts.dual_itrng {
-            tclargs.push("DUAL_ITRNG=TRUE");
-        }
+        let tclargs = spec.tclargs;
         if opts.dry_run {
             println!(
                 "[dry-run] (cd {} && {} -mode batch -source fpga_configuration.tcl -tclargs {})",
@@ -1181,7 +1224,7 @@ pub fn run_build(repo_root: &Path, opts: &BuildOptions) -> Result<()> {
                     "fpga_configuration.tcl",
                     "-tclargs",
                 ])
-                .args(&tclargs)
+                .args(tclargs)
                 .status()
                 .with_context(|| format!("failed to invoke {vivado_bin}"))?
         } else {
@@ -1199,7 +1242,7 @@ pub fn run_build(repo_root: &Path, opts: &BuildOptions) -> Result<()> {
                     "fpga_configuration.tcl",
                     "-tclargs",
                 ])
-                .args(&tclargs)
+                .args(tclargs)
                 .status()
                 .with_context(|| format!("failed to invoke {vivado_bin} via {vivado_settings}"))?
         };
@@ -1416,26 +1459,67 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn dual_itrng_rejects_other_targets_before_building() {
-        let root = TempDir::new().unwrap();
-        for selector in ["all", "2.2", "2.2/core", "2.1/subsystem"] {
-            let error = run_build(
-                root.path(),
-                &BuildOptions {
-                    selector: selector.parse().unwrap(),
-                    dry_run: true,
-                    dual_itrng: true,
-                    staging_dir: None,
-                },
-            )
-            .unwrap_err();
-            assert!(error.to_string().contains("--dual-itrng requires"));
+    fn dual_itrng_variants_preserve_build_settings() {
+        for (dual, normal) in [
+            (
+                Variant::Subsystem2_2StandardDualItrng,
+                Variant::Subsystem2_2Standard,
+            ),
+            (
+                Variant::Subsystem2_2SegmentedDualItrng,
+                Variant::Subsystem2_2Segmented,
+            ),
+        ] {
+            let selected = select_variants(dual.as_str().parse().unwrap());
+            assert_eq!(selected, vec![dual.spec()]);
+            let mut expected_args = normal.spec().tclargs.to_vec();
+            expected_args.push("DUAL_ITRNG=TRUE");
+            assert_eq!(selected[0].tclargs, expected_args);
+            assert_eq!(
+                *selected[0],
+                VariantSpec {
+                    variant: dual,
+                    publish: false,
+                    tclargs: dual.spec().tclargs,
+                    ..*normal.spec()
+                }
+            );
+            let matrix = filter_dispatch_matrix(None, Some(dual.as_str()), true).unwrap();
+            assert_eq!(matrix, vec![dual.spec().to_matrix_entry()]);
+            assert_eq!(
+                serde_json::from_str::<MatrixEntry>(&serde_json::to_string(&matrix[0]).unwrap())
+                    .unwrap(),
+                matrix[0]
+            );
         }
     }
 
     #[test]
+    fn dual_itrng_requires_explicit_selection() {
+        for selector in ["all", "2.2", "2.2/subsystem", "2.2/core", "2.1/subsystem"] {
+            let selected = select_variants(selector.parse().unwrap());
+            assert!(
+                selected
+                    .iter()
+                    .all(|spec| !spec.tclargs.contains(&"DUAL_ITRNG=TRUE"))
+            );
+            let matrix = filter_dispatch_matrix(Some(selector), None, true).unwrap();
+            assert_eq!(
+                matrix,
+                selected
+                    .into_iter()
+                    .map(VariantSpec::to_matrix_entry)
+                    .collect::<Vec<_>>()
+            );
+        }
+        let listed = format_variants_table();
+        assert!(listed.contains("subsystem-2.2-standard-dual-itrng"));
+        assert!(listed.contains("subsystem-2.2-segmented-dual-itrng"));
+    }
+
+    #[test]
     fn catalog_integrity() {
-        assert_eq!(Variant::ALL.len(), 16);
+        assert_eq!(Variant::ALL.len(), 18);
         let mut names = HashSet::new();
         let mut releases = BTreeSet::new();
         let mut subtargets = BTreeSet::new();
