@@ -695,6 +695,7 @@ pub enum BundleArtifacts {
 pub struct BuildOptions {
     pub selector: BuildSelector,
     pub dry_run: bool,
+    pub dual_itrng: bool,
     pub staging_dir: Option<PathBuf>,
 }
 
@@ -758,11 +759,23 @@ pub fn format_variants_table() -> String {
     let mut out = String::new();
     out.push_str(&format!(
         "{:<25} {:<7} {:<14} {:<7} {:<23} {:<31} {}\n",
-        "VARIANT", "RELEASE", "SUBTARGET", "BOARD", "FPGA_DIR", "SUBMODULE_PATH", "TCLARGS / OUTPUTS"
+        "VARIANT",
+        "RELEASE",
+        "SUBTARGET",
+        "BOARD",
+        "FPGA_DIR",
+        "SUBMODULE_PATH",
+        "TCLARGS / OUTPUTS"
     ));
     out.push_str(&format!(
         "{:<25} {:<7} {:<14} {:<7} {:<23} {:<31} {}\n",
-        "-------", "-------", "---------", "-----", "--------", "--------------", "-----------------"
+        "-------",
+        "-------",
+        "---------",
+        "-----",
+        "--------",
+        "--------------",
+        "-----------------"
     ));
     for v in all_specs() {
         out.push_str(&format!(
@@ -945,33 +958,32 @@ pub fn compute_ci_matrix(repo_root: &Path) -> Result<MatrixOutput> {
         .or_else(|| env::var("GITHUB_SHA").ok().filter(|s| !s.is_empty()))
         .unwrap_or_else(|| "HEAD".to_string());
 
-    let selection = if before_sha.is_empty()
-        || before_sha == "0000000000000000000000000000000000000000"
-    {
-        PushSelection::All
-    } else {
-        if !git_commit_exists(repo_root, &before_sha) {
-            let _ = Command::new("git")
-                .arg("-C")
-                .arg(repo_root)
-                .args(["fetch", "--no-tags", "--depth=1", "origin", &before_sha])
-                .output();
-        }
-        if !git_commit_exists(repo_root, &before_sha) {
+    let selection =
+        if before_sha.is_empty() || before_sha == "0000000000000000000000000000000000000000" {
             PushSelection::All
         } else {
-            let changed = git_diff_names(repo_root, &before_sha, &after_sha, None)?;
-            let hw_diff = if changed.iter().any(|p| p == ".gitmodules") {
-                git_diff_names(repo_root, &before_sha, &after_sha, Some("hw/"))?
+            if !git_commit_exists(repo_root, &before_sha) {
+                let _ = Command::new("git")
+                    .arg("-C")
+                    .arg(repo_root)
+                    .args(["fetch", "--no-tags", "--depth=1", "origin", &before_sha])
+                    .output();
+            }
+            if !git_commit_exists(repo_root, &before_sha) {
+                PushSelection::All
             } else {
-                Vec::new()
-            };
-            classify_push_paths(
-                changed.iter().map(String::as_str),
-                hw_diff.iter().map(String::as_str),
-            )
-        }
-    };
+                let changed = git_diff_names(repo_root, &before_sha, &after_sha, None)?;
+                let hw_diff = if changed.iter().any(|p| p == ".gitmodules") {
+                    git_diff_names(repo_root, &before_sha, &after_sha, Some("hw/"))?
+                } else {
+                    Vec::new()
+                };
+                classify_push_paths(
+                    changed.iter().map(String::as_str),
+                    hw_diff.iter().map(String::as_str),
+                )
+            }
+        };
 
     let include = match selection {
         PushSelection::All => all_specs().map(VariantSpec::to_matrix_entry).collect(),
@@ -1039,15 +1051,21 @@ fn copy_built_artifacts(build_dir: &Path, staging_dir: &Path) -> Result<usize> {
     for src in &entries {
         let name = src.file_name().context("artifact missing filename")?;
         let dst = staging_dir.join(name);
-        fs::copy(src, &dst).with_context(|| {
-            format!("failed to copy {} to {}", src.display(), dst.display())
-        })?;
+        fs::copy(src, &dst)
+            .with_context(|| format!("failed to copy {} to {}", src.display(), dst.display()))?;
     }
     Ok(entries.len())
 }
 
 pub fn run_build(repo_root: &Path, opts: &BuildOptions) -> Result<()> {
     let selected = select_variants(opts.selector);
+    if opts.dual_itrng
+        && selected
+            .iter()
+            .any(|spec| spec.subtarget != Subtarget::V2_2Subsystem)
+    {
+        bail!("--dual-itrng requires a 2.2/subsystem selector or variant");
+    }
     let vivado_bin = env::var("VIVADO_BIN")
         .ok()
         .filter(|s| !s.is_empty())
@@ -1070,29 +1088,27 @@ pub fn run_build(repo_root: &Path, opts: &BuildOptions) -> Result<()> {
             println!("[dry-run] source {vivado_settings}");
         }
     } else if !vivado_on_path && !settings_exists {
-        bail!(
-            "Vivado executable '{vivado_bin}' not found (checked PATH and '{vivado_settings}')."
-        );
+        bail!("Vivado executable '{vivado_bin}' not found (checked PATH and '{vivado_settings}').");
     }
 
-    let staging_abs = if let Some(dir) = &opts.staging_dir {
-        if opts.dry_run {
-            if dir.is_absolute() {
-                Some(dir.clone())
+    let staging_abs =
+        if let Some(dir) = &opts.staging_dir {
+            if opts.dry_run {
+                if dir.is_absolute() {
+                    Some(dir.clone())
+                } else {
+                    Some(env::current_dir()?.join(dir))
+                }
             } else {
-                Some(env::current_dir()?.join(dir))
+                fs::create_dir_all(dir)
+                    .with_context(|| format!("failed to create staging dir {}", dir.display()))?;
+                Some(fs::canonicalize(dir).with_context(|| {
+                    format!("failed to canonicalize staging dir {}", dir.display())
+                })?)
             }
         } else {
-            fs::create_dir_all(dir).with_context(|| {
-                format!("failed to create staging dir {}", dir.display())
-            })?;
-            Some(fs::canonicalize(dir).with_context(|| {
-                format!("failed to canonicalize staging dir {}", dir.display())
-            })?)
-        }
-    } else {
-        None
-    };
+            None
+        };
 
     for spec in selected {
         println!(
@@ -1133,12 +1149,16 @@ pub fn run_build(repo_root: &Path, opts: &BuildOptions) -> Result<()> {
         }
 
         let fpga_dir = repo_root.join(spec.fpga_dir);
+        let mut tclargs = spec.tclargs.to_vec();
+        if opts.dual_itrng {
+            tclargs.push("DUAL_ITRNG=TRUE");
+        }
         if opts.dry_run {
             println!(
                 "[dry-run] (cd {} && {} -mode batch -source fpga_configuration.tcl -tclargs {})",
                 fpga_dir.display(),
                 vivado_bin,
-                spec.tclargs.join(" ")
+                tclargs.join(" ")
             );
             if let Some(stage) = &staging_abs {
                 println!("[dry-run] mkdir -p {}", stage.display());
@@ -1161,7 +1181,7 @@ pub fn run_build(repo_root: &Path, opts: &BuildOptions) -> Result<()> {
                     "fpga_configuration.tcl",
                     "-tclargs",
                 ])
-                .args(spec.tclargs)
+                .args(&tclargs)
                 .status()
                 .with_context(|| format!("failed to invoke {vivado_bin}"))?
         } else {
@@ -1179,11 +1199,9 @@ pub fn run_build(repo_root: &Path, opts: &BuildOptions) -> Result<()> {
                     "fpga_configuration.tcl",
                     "-tclargs",
                 ])
-                .args(spec.tclargs)
+                .args(&tclargs)
                 .status()
-                .with_context(|| {
-                    format!("failed to invoke {vivado_bin} via {vivado_settings}")
-                })?
+                .with_context(|| format!("failed to invoke {vivado_bin} via {vivado_settings}"))?
         };
         if !status.success() {
             bail!(
@@ -1398,6 +1416,24 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
+    fn dual_itrng_rejects_other_targets_before_building() {
+        let root = TempDir::new().unwrap();
+        for selector in ["all", "2.2", "2.2/core", "2.1/subsystem"] {
+            let error = run_build(
+                root.path(),
+                &BuildOptions {
+                    selector: selector.parse().unwrap(),
+                    dry_run: true,
+                    dual_itrng: true,
+                    staging_dir: None,
+                },
+            )
+            .unwrap_err();
+            assert!(error.to_string().contains("--dual-itrng requires"));
+        }
+    }
+
+    #[test]
     fn catalog_integrity() {
         assert_eq!(Variant::ALL.len(), 16);
         let mut names = HashSet::new();
@@ -1426,8 +1462,14 @@ mod tests {
     fn select_variants_matching() {
         assert_eq!(select_variants(BuildSelector::All).len(), 16);
         assert_eq!(select_variants("all".parse().unwrap()).len(), 16);
-        assert_eq!(select_variants(BuildSelector::Release(Release::V1x)).len(), 4);
-        assert_eq!(select_variants(BuildSelector::Release(Release::V2_0)).len(), 4);
+        assert_eq!(
+            select_variants(BuildSelector::Release(Release::V1x)).len(),
+            4
+        );
+        assert_eq!(
+            select_variants(BuildSelector::Release(Release::V2_0)).len(),
+            4
+        );
         assert_eq!(
             select_variants(BuildSelector::Subtarget(Subtarget::V2_1Core))
                 .into_iter()
@@ -1453,7 +1495,11 @@ mod tests {
 
         let no_std = filter_dispatch_matrix(Some("all"), None, false).unwrap();
         assert_eq!(no_std.len(), 10);
-        assert!(no_std.iter().all(|e| e.board == Board::Zcu104 || e.segmented));
+        assert!(
+            no_std
+                .iter()
+                .all(|e| e.board == Board::Zcu104 || e.segmented)
+        );
 
         let ss22 = filter_dispatch_matrix(Some("2.2/subsystem"), None, false).unwrap();
         assert_eq!(
@@ -1538,10 +1584,7 @@ mod tests {
                 Subtarget::V2_1Subsystem
             ]))
         );
-        assert_eq!(
-            classify_push_paths([".gitmodules"], []),
-            PushSelection::All
-        );
+        assert_eq!(classify_push_paths([".gitmodules"], []), PushSelection::All);
     }
 
     #[tokio::test]
@@ -1672,7 +1715,10 @@ mod tests {
             .unwrap();
         assert_eq!(manifest.caliptra_variant, "core-2.0-segmented");
         assert_eq!(manifest.hw_major_version, "2.0");
-        assert_eq!(manifest.caliptra_ss_commit.as_deref(), Some(expected_ss_commit.as_str()));
+        assert_eq!(
+            manifest.caliptra_ss_commit.as_deref(),
+            Some(expected_ss_commit.as_str())
+        );
         assert!(manifest.segmented);
         assert!(manifest.xsa_hash.is_some());
         assert!(manifest.pdi_hash.is_some());
