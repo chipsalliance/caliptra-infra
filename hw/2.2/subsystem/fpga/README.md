@@ -97,6 +97,28 @@ This script provides a number of configuration options for features that can be 
 | ------      | -------
 | BUILD=TRUE  | Automatically start building the FPGA.
 | GUI=TRUE    | Open the Vivado GUI.
+| DUAL_ITRNG=TRUE | Opt-in dual-iTRNG lab image; requires `ITRNG=TRUE`. |
+
+For a non-segmented dual-iTRNG lab build using the infra CLI:
+
+```shell
+cargo run --manifest-path ci-tools/Cargo.toml -p caliptra-bitstream-downloader -- build --staging-dir /tmp/dual-itrng subsystem-2.2-standard-dual-itrng
+```
+
+Use `subsystem-2.2-segmented-dual-itrng` for a segmented dual-iTRNG build.
+Both are static build variants shown by `list`; they replace the `--dual-itrng`
+flag and must be selected by their full variant name. Aggregate selectors
+(`all`, `2.2`, and `2.2/subsystem`) and default CI matrices exclude them.
+An explicit workflow-dispatch `variant` input can select either lab image;
+neither is published to GCS.
+
+The ordinary CI variants remain single-source. On a dual-capable image,
+`status.dual_itrng_capable` (offset `0x000C`, bit 8) advertises the ES1 FIFO.
+`entropy_ctrl.itrng1_en` (offset `0x001C`, bit 0) defaults to zero; write it while
+both subsystem reset and power-good controls are low to select ES0+ES1.
+Warm reset preserves the strap. ES1 samples are cleared only through the
+ES1 FIFO reset register, not by subsystem reset. Normal images report no
+dual-iTRNG capability and ignore strap writes.
 
 The build applies additional placement spreading and congestion settings when
 Vivado exposes the `STEPS.PLACE_DESIGN.ARGS.SUBDIRECTIVE` run property. Otherwise,
