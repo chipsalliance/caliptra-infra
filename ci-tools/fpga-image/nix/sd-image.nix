@@ -22,6 +22,7 @@
     else
       buildPkgs.pkgsCross.aarch64-multiplatform
   ),
+  githubRunnerPkg ? pkgs.github-runner,
   ...
 }:
 
@@ -167,7 +168,7 @@ let
             ln -sf ${pkgs.bashInteractive}/bin/bash ./rootImage/bin/bash
             ln -sf ${pkgs.coreutils}/bin/env ./rootImage/usr/bin/env
             ln -sf ${toplevel}/init ./rootImage/sbin/init
-            ln -sf ${pkgs.github-runner}/bin/run.sh ./rootImage/home/runner/run.sh
+            ln -sf ${githubRunnerPkg}/bin/run.sh ./rootImage/home/runner/run.sh
 
             echo "Copying Nix store closure into rootImage..."
             mkdir -p ./rootImage/nix/store

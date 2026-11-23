@@ -185,6 +185,28 @@ fn copy_file(dest: &mut File, src: &mut File) -> std::io::Result<()> {
     Ok(())
 }
 
+const UART_TX_CHUNK_BYTES: usize = 16;
+const UART_TX_CHUNK_PAUSE: Duration = Duration::from_millis(5);
+
+/// Writes a command to the FPGA UART in small chunks so a 115200-baud receiver
+/// without hardware flow control (e.g. 32-byte PL011 RX FIFO) does not drop bytes.
+fn write_uart_paced<W: Write>(
+    writer: &mut W,
+    data: &[u8],
+    chunk_size: usize,
+    pause: Duration,
+) -> std::io::Result<()> {
+    let step = chunk_size.max(1);
+    for (i, chunk) in data.chunks(step).enumerate() {
+        if i > 0 && !pause.is_zero() {
+            std::thread::sleep(pause);
+        }
+        writer.write_all(chunk)?;
+        writer.flush()?;
+    }
+    Ok(())
+}
+
 /// As we observe conditions that get the FGPA stuck, add them to the error parser.
 fn active_runner_error_checks(input: &str) -> std::io::Result<()> {
     check_for_github_runner_exception(input)?;
@@ -721,13 +743,22 @@ fn main_impl() -> anyhow::Result<()> {
                 }
 
                 tracker.set_state("REGISTERING");
-                uart_tx.write_all(b"runner-jitconfig ")?;
-                uart_tx.write_all(
-                    &cached_token
-                        .clone()
-                        .expect("A token should always be cached before sending it over the UART"),
+                let token = cached_token
+                    .as_ref()
+                    .expect("A token should always be cached before sending it over the UART");
+                let mut cmd = Vec::with_capacity(17 + token.len() + 1);
+                cmd.extend_from_slice(b"runner-jitconfig ");
+                cmd.extend_from_slice(token);
+                while matches!(cmd.last(), Some(b'\r' | b'\n')) {
+                    cmd.pop();
+                }
+                cmd.push(b'\n');
+                write_uart_paced(
+                    &mut uart_tx,
+                    &cmd,
+                    UART_TX_CHUNK_BYTES,
+                    UART_TX_CHUNK_PAUSE,
                 )?;
-                uart_tx.write_all(b"\n")?;
 
                 if !wait_for_registration(&mut uart_stream, &mut tracker, BOOT_TIMEOUT)? {
                     continue 'outer;
@@ -994,5 +1025,44 @@ mod tests {
         assert_eq!(busy_tracker.record().state, "UNHEALTHY");
         assert_eq!(busy_tracker.record().consecutive_health_failures, 3);
         busy_tracker.mark_stopped_cleanly();
+    }
+
+    struct ChunkRecorder {
+        writes: Vec<Vec<u8>>,
+        flushes: usize,
+    }
+
+    impl Write for ChunkRecorder {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.writes.push(buf.to_vec());
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.flushes += 1;
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn test_write_uart_paced_splits_chunks_and_flushes() {
+        let mut recorder = ChunkRecorder {
+            writes: Vec::new(),
+            flushes: 0,
+        };
+        let payload = b"runner-jitconfig abcdefghijklmnopqrstuvwxyz\n";
+        write_uart_paced(&mut recorder, payload, 16, Duration::ZERO).unwrap();
+
+        assert_eq!(
+            recorder.writes,
+            vec![
+                b"runner-jitconfig".to_vec(),
+                b" abcdefghijklmno".to_vec(),
+                b"pqrstuvwxyz\n".to_vec(),
+            ]
+        );
+        assert_eq!(recorder.flushes, 3);
+        let reassembled: Vec<u8> = recorder.writes.into_iter().flatten().collect();
+        assert_eq!(reassembled, payload);
     }
 }
