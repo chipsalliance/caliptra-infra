@@ -1,10 +1,11 @@
-539c539
-<         '0' when (st = T_META_WAIT) else
----
->         '0' when (st = T_IDLE) or (st = T_MIRROR) or (st = T_META_WAIT) else
-808c808
-<         elsif ep0_ocp_owner_r = '0' then
----
->         elsif (ep0_ocp_owner_r = '0') or (new_setup_c = '1') then
-815a816
->             in_data_toggle_r <= '1';
+--- a/usb_ocp_recovery_post_sync_arb.m.vhdl
++++ b/usb_ocp_recovery_post_sync_arb.m.vhdl
+@@ -655,7 +655,7 @@
+         '0' when (rsp_live_stall_c = '1') else
+         '1' when (sync_sieint_epinfo_setup_i = '1') else
+         '1' when (rx_duplicate_window_c = '1') else
+-        '0' when (st = T_META_WAIT) else
++        '0' when (st = T_IDLE) or (st = T_MIRROR) or (st = T_META_WAIT) else
+         '0' when (rx_backend_busy_c = '1') else
+         '0' when (st = T_DATA) and (xfer_dir_in_r = '1')
+                  and (tx_launch_ready_c = '0') else

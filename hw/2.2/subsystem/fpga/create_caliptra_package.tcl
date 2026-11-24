@@ -104,7 +104,7 @@ add_files [ glob $usbDir/usb_hub_composite_device/RTL/RTL/*.vhdl ]
 # - usb_synchronizer_60mhz.patch: register pie_dev_selected into hclk and
 #   epinfo_* into FsClk (ulpi_clk) so the pie_clk -> hclk -> pie_clk cone is cut.
 # - usb_ocp_arb_toggle_fix.patch: keep rsp_live_active_c deasserted in
-#   T_IDLE/T_MIRROR and reset in_data_toggle_r to DATA1 on SETUP / ZLP end.
+#   T_IDLE/T_MIRROR (EP0 toggle separation/reset was upstreamed in usb2#120).
 if {![info exists USB_ULPI_SYNC_STP] || $USB_ULPI_SYNC_STP} {
   file copy -force $usbDir/usb_hub_composite_device/RTL/RTL/usb_pie.m.vhdl $outputDir/usb_pie.m.vhdl
   exec patch $outputDir/usb_pie.m.vhdl $fpgaDir/src/usb_pie_sync_stp.patch
