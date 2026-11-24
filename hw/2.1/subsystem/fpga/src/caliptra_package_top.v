@@ -555,8 +555,145 @@ module caliptra_package_axi_top (
     output	wire                      S_AXI_WRAPPER_RVALID,
     input	wire                      S_AXI_WRAPPER_RREADY,
     output	wire [31:0]               S_AXI_WRAPPER_RDATA,
-    output	wire [1:0]                S_AXI_WRAPPER_RRESP
+    output	wire [1:0]                S_AXI_WRAPPER_RRESP,
+
+    // AXI CDMA manager port, in from the CDMA and out to the interconnect.
+    // The package adds AxUSER from the cdma_axi_user register.
+    input  wire [31:0] S_AXI_CDMA_AWADDR,
+    input  wire [7:0] S_AXI_CDMA_AWLEN,
+    input  wire [2:0] S_AXI_CDMA_AWSIZE,
+    input  wire [1:0] S_AXI_CDMA_AWBURST,
+    input  wire [2:0] S_AXI_CDMA_AWPROT,
+    input  wire [3:0] S_AXI_CDMA_AWCACHE,
+    input  wire S_AXI_CDMA_AWVALID,
+    output wire S_AXI_CDMA_AWREADY,
+    input  wire [31:0] S_AXI_CDMA_WDATA,
+    input  wire [3:0] S_AXI_CDMA_WSTRB,
+    input  wire S_AXI_CDMA_WLAST,
+    input  wire S_AXI_CDMA_WVALID,
+    output wire S_AXI_CDMA_WREADY,
+    output wire [1:0] S_AXI_CDMA_BRESP,
+    output wire S_AXI_CDMA_BVALID,
+    input  wire S_AXI_CDMA_BREADY,
+    input  wire [31:0] S_AXI_CDMA_ARADDR,
+    input  wire [7:0] S_AXI_CDMA_ARLEN,
+    input  wire [2:0] S_AXI_CDMA_ARSIZE,
+    input  wire [1:0] S_AXI_CDMA_ARBURST,
+    input  wire [2:0] S_AXI_CDMA_ARPROT,
+    input  wire [3:0] S_AXI_CDMA_ARCACHE,
+    input  wire S_AXI_CDMA_ARVALID,
+    output wire S_AXI_CDMA_ARREADY,
+    output wire [31:0] S_AXI_CDMA_RDATA,
+    output wire [1:0] S_AXI_CDMA_RRESP,
+    output wire S_AXI_CDMA_RLAST,
+    output wire S_AXI_CDMA_RVALID,
+    input  wire S_AXI_CDMA_RREADY,
+    output wire [31:0] M_AXI_CDMA_AWADDR,
+    output wire [7:0] M_AXI_CDMA_AWLEN,
+    output wire [2:0] M_AXI_CDMA_AWSIZE,
+    output wire [1:0] M_AXI_CDMA_AWBURST,
+    output wire [2:0] M_AXI_CDMA_AWPROT,
+    output wire [3:0] M_AXI_CDMA_AWCACHE,
+    output wire M_AXI_CDMA_AWVALID,
+    input  wire M_AXI_CDMA_AWREADY,
+    output wire [31:0] M_AXI_CDMA_WDATA,
+    output wire [3:0] M_AXI_CDMA_WSTRB,
+    output wire M_AXI_CDMA_WLAST,
+    output wire M_AXI_CDMA_WVALID,
+    input  wire M_AXI_CDMA_WREADY,
+    input  wire [1:0] M_AXI_CDMA_BRESP,
+    input  wire M_AXI_CDMA_BVALID,
+    output wire M_AXI_CDMA_BREADY,
+    output wire [31:0] M_AXI_CDMA_ARADDR,
+    output wire [7:0] M_AXI_CDMA_ARLEN,
+    output wire [2:0] M_AXI_CDMA_ARSIZE,
+    output wire [1:0] M_AXI_CDMA_ARBURST,
+    output wire [2:0] M_AXI_CDMA_ARPROT,
+    output wire [3:0] M_AXI_CDMA_ARCACHE,
+    output wire M_AXI_CDMA_ARVALID,
+    input  wire M_AXI_CDMA_ARREADY,
+    input  wire [31:0] M_AXI_CDMA_RDATA,
+    input  wire [1:0] M_AXI_CDMA_RRESP,
+    input  wire M_AXI_CDMA_RLAST,
+    input  wire M_AXI_CDMA_RVALID,
+    output wire M_AXI_CDMA_RREADY,
+    output wire [31:0] M_AXI_CDMA_AWUSER,
+    output wire [31:0] M_AXI_CDMA_ARUSER,
+    input  wire        cdma_irq,
+
+    // Flash and SoC core memory S_AXI Interface
+    input  wire [31:0] S_AXI_FPGA_MEM_AWADDR,
+    input  wire [1:0]  S_AXI_FPGA_MEM_AWBURST,
+    input  wire [2:0]  S_AXI_FPGA_MEM_AWSIZE,
+    input  wire [7:0]  S_AXI_FPGA_MEM_AWLEN,
+    input  wire [31:0] S_AXI_FPGA_MEM_AWUSER,
+    input  wire [7:0]  S_AXI_FPGA_MEM_AWID,
+    input  wire        S_AXI_FPGA_MEM_AWLOCK,
+    input  wire        S_AXI_FPGA_MEM_AWVALID,
+    output wire        S_AXI_FPGA_MEM_AWREADY,
+    // W
+    input  wire [31:0] S_AXI_FPGA_MEM_WDATA,
+    input  wire [3:0]  S_AXI_FPGA_MEM_WSTRB,
+    input  wire        S_AXI_FPGA_MEM_WVALID,
+    output wire        S_AXI_FPGA_MEM_WREADY,
+    input  wire        S_AXI_FPGA_MEM_WLAST,
+    // B
+    output wire [1:0]  S_AXI_FPGA_MEM_BRESP,
+    output wire [7:0]  S_AXI_FPGA_MEM_BID,
+    output wire        S_AXI_FPGA_MEM_BVALID,
+    input  wire        S_AXI_FPGA_MEM_BREADY,
+    // AR
+    input  wire [31:0] S_AXI_FPGA_MEM_ARADDR,
+    input  wire [1:0]  S_AXI_FPGA_MEM_ARBURST,
+    input  wire [2:0]  S_AXI_FPGA_MEM_ARSIZE,
+    input  wire [7:0]  S_AXI_FPGA_MEM_ARLEN,
+    input  wire [31:0] S_AXI_FPGA_MEM_ARUSER,
+    input  wire [7:0]  S_AXI_FPGA_MEM_ARID,
+    input  wire        S_AXI_FPGA_MEM_ARLOCK,
+    input  wire        S_AXI_FPGA_MEM_ARVALID,
+    output wire        S_AXI_FPGA_MEM_ARREADY,
+    // R
+    output wire [31:0] S_AXI_FPGA_MEM_RDATA,
+    output wire [1:0]  S_AXI_FPGA_MEM_RRESP,
+    output wire [7:0]  S_AXI_FPGA_MEM_RID,
+    output wire        S_AXI_FPGA_MEM_RLAST,
+    output wire        S_AXI_FPGA_MEM_RVALID,
+    input  wire        S_AXI_FPGA_MEM_RREADY
     );
+
+    // AXI CDMA manager port pass-through
+    wire [31:0] CDMA_USER;
+    assign M_AXI_CDMA_AWUSER = CDMA_USER;
+    assign M_AXI_CDMA_ARUSER = CDMA_USER;
+    assign M_AXI_CDMA_AWADDR = S_AXI_CDMA_AWADDR;
+    assign M_AXI_CDMA_AWLEN = S_AXI_CDMA_AWLEN;
+    assign M_AXI_CDMA_AWSIZE = S_AXI_CDMA_AWSIZE;
+    assign M_AXI_CDMA_AWBURST = S_AXI_CDMA_AWBURST;
+    assign M_AXI_CDMA_AWPROT = S_AXI_CDMA_AWPROT;
+    assign M_AXI_CDMA_AWCACHE = S_AXI_CDMA_AWCACHE;
+    assign M_AXI_CDMA_AWVALID = S_AXI_CDMA_AWVALID;
+    assign S_AXI_CDMA_AWREADY = M_AXI_CDMA_AWREADY;
+    assign M_AXI_CDMA_WDATA = S_AXI_CDMA_WDATA;
+    assign M_AXI_CDMA_WSTRB = S_AXI_CDMA_WSTRB;
+    assign M_AXI_CDMA_WLAST = S_AXI_CDMA_WLAST;
+    assign M_AXI_CDMA_WVALID = S_AXI_CDMA_WVALID;
+    assign S_AXI_CDMA_WREADY = M_AXI_CDMA_WREADY;
+    assign S_AXI_CDMA_BRESP = M_AXI_CDMA_BRESP;
+    assign S_AXI_CDMA_BVALID = M_AXI_CDMA_BVALID;
+    assign M_AXI_CDMA_BREADY = S_AXI_CDMA_BREADY;
+    assign M_AXI_CDMA_ARADDR = S_AXI_CDMA_ARADDR;
+    assign M_AXI_CDMA_ARLEN = S_AXI_CDMA_ARLEN;
+    assign M_AXI_CDMA_ARSIZE = S_AXI_CDMA_ARSIZE;
+    assign M_AXI_CDMA_ARBURST = S_AXI_CDMA_ARBURST;
+    assign M_AXI_CDMA_ARPROT = S_AXI_CDMA_ARPROT;
+    assign M_AXI_CDMA_ARCACHE = S_AXI_CDMA_ARCACHE;
+    assign M_AXI_CDMA_ARVALID = S_AXI_CDMA_ARVALID;
+    assign S_AXI_CDMA_ARREADY = M_AXI_CDMA_ARREADY;
+    assign S_AXI_CDMA_RDATA = M_AXI_CDMA_RDATA;
+    assign S_AXI_CDMA_RRESP = M_AXI_CDMA_RRESP;
+    assign S_AXI_CDMA_RLAST = M_AXI_CDMA_RLAST;
+    assign S_AXI_CDMA_RVALID = M_AXI_CDMA_RVALID;
+    assign M_AXI_CDMA_RREADY = S_AXI_CDMA_RREADY;
 
 caliptra_wrapper_top cptra_wrapper (
     .core_clk(core_clk),
@@ -1097,6 +1234,45 @@ caliptra_wrapper_top cptra_wrapper (
     .S_AXI_WRAPPER_RVALID(S_AXI_WRAPPER_RVALID),
     .S_AXI_WRAPPER_RREADY(S_AXI_WRAPPER_RREADY),
     .S_AXI_WRAPPER_RDATA(S_AXI_WRAPPER_RDATA),
-    .S_AXI_WRAPPER_RRESP(S_AXI_WRAPPER_RRESP)
+    .S_AXI_WRAPPER_RRESP(S_AXI_WRAPPER_RRESP),
+
+    // AXI CDMA sideband
+    .CDMA_USER(CDMA_USER),
+    .cdma_irq(cdma_irq),
+
+    // Flash and SoC core memory S_AXI Interface
+    .S_AXI_FPGA_MEM_AWADDR(S_AXI_FPGA_MEM_AWADDR),
+    .S_AXI_FPGA_MEM_AWBURST(S_AXI_FPGA_MEM_AWBURST),
+    .S_AXI_FPGA_MEM_AWSIZE(S_AXI_FPGA_MEM_AWSIZE),
+    .S_AXI_FPGA_MEM_AWLEN(S_AXI_FPGA_MEM_AWLEN),
+    .S_AXI_FPGA_MEM_AWUSER(S_AXI_FPGA_MEM_AWUSER),
+    .S_AXI_FPGA_MEM_AWID(S_AXI_FPGA_MEM_AWID),
+    .S_AXI_FPGA_MEM_AWLOCK(S_AXI_FPGA_MEM_AWLOCK),
+    .S_AXI_FPGA_MEM_AWVALID(S_AXI_FPGA_MEM_AWVALID),
+    .S_AXI_FPGA_MEM_AWREADY(S_AXI_FPGA_MEM_AWREADY),
+    .S_AXI_FPGA_MEM_WDATA(S_AXI_FPGA_MEM_WDATA),
+    .S_AXI_FPGA_MEM_WSTRB(S_AXI_FPGA_MEM_WSTRB),
+    .S_AXI_FPGA_MEM_WVALID(S_AXI_FPGA_MEM_WVALID),
+    .S_AXI_FPGA_MEM_WREADY(S_AXI_FPGA_MEM_WREADY),
+    .S_AXI_FPGA_MEM_WLAST(S_AXI_FPGA_MEM_WLAST),
+    .S_AXI_FPGA_MEM_BRESP(S_AXI_FPGA_MEM_BRESP),
+    .S_AXI_FPGA_MEM_BID(S_AXI_FPGA_MEM_BID),
+    .S_AXI_FPGA_MEM_BVALID(S_AXI_FPGA_MEM_BVALID),
+    .S_AXI_FPGA_MEM_BREADY(S_AXI_FPGA_MEM_BREADY),
+    .S_AXI_FPGA_MEM_ARADDR(S_AXI_FPGA_MEM_ARADDR),
+    .S_AXI_FPGA_MEM_ARBURST(S_AXI_FPGA_MEM_ARBURST),
+    .S_AXI_FPGA_MEM_ARSIZE(S_AXI_FPGA_MEM_ARSIZE),
+    .S_AXI_FPGA_MEM_ARLEN(S_AXI_FPGA_MEM_ARLEN),
+    .S_AXI_FPGA_MEM_ARUSER(S_AXI_FPGA_MEM_ARUSER),
+    .S_AXI_FPGA_MEM_ARID(S_AXI_FPGA_MEM_ARID),
+    .S_AXI_FPGA_MEM_ARLOCK(S_AXI_FPGA_MEM_ARLOCK),
+    .S_AXI_FPGA_MEM_ARVALID(S_AXI_FPGA_MEM_ARVALID),
+    .S_AXI_FPGA_MEM_ARREADY(S_AXI_FPGA_MEM_ARREADY),
+    .S_AXI_FPGA_MEM_RDATA(S_AXI_FPGA_MEM_RDATA),
+    .S_AXI_FPGA_MEM_RRESP(S_AXI_FPGA_MEM_RRESP),
+    .S_AXI_FPGA_MEM_RID(S_AXI_FPGA_MEM_RID),
+    .S_AXI_FPGA_MEM_RLAST(S_AXI_FPGA_MEM_RLAST),
+    .S_AXI_FPGA_MEM_RVALID(S_AXI_FPGA_MEM_RVALID),
+    .S_AXI_FPGA_MEM_RREADY(S_AXI_FPGA_MEM_RREADY)
 );
 endmodule

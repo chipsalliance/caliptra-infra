@@ -267,6 +267,34 @@ regfile interface_regs {
         field { sw=r; hw=rw; desc = "OCP LOCK Ready bit. Sticky bit indicating the engine has processed the MEK."; } rdy[0:0] = 1'b0;
         field { sw=rw; hw=na; desc = "Reserved bits for OCP LOCK Control"; } reserved[31:1] = 31'h0;
     } ocp_lock_control_reg @ 0x280;
+
+    reg {
+        default sw=r;
+        default hw=na;
+
+        field { desc = "Hardware flash controllers (primary_hw_flash_ctrl_regs, secondary_hw_flash_ctrl_regs) are present."; } hw_flash[0:0] = 1'b1;
+        field { desc = "The AXI CDMA interrupt and cdma_axi_user are connected."; } cdma[1:1] = 1'b1;
+        field { desc = "SoC RV32 core, its SRAM and the soc_fifo registers are present."; } soc_core[2:2] = 1'b1;
+    } fpga_features @ 0x300;
+
+    reg {
+        field { sw=rw; hw=r; desc = "Bit of SS_GENERIC_FW_EXEC_CTRL that releases the SoC core from reset. Bits 0 and 1 are not exported by the subsystem and read as 0."; } exec_bit[6:0] = 7'd3;
+        field { sw=rw; hw=r; desc = "Hold the SoC core in reset regardless of SS_GENERIC_FW_EXEC_CTRL."; } force_reset[8:8] = 1'b0;
+        field { sw=rw; hw=r; desc = "Release the SoC core from reset regardless of SS_GENERIC_FW_EXEC_CTRL. force_reset has priority."; } force_run[9:9] = 1'b0;
+    } soc_core_control @ 0x304;
+
+    reg {
+        field { sw=r; hw=w; desc = "SoC core reset (active low)."; } rst_b[0:0];
+        field { sw=r; hw=w; desc = "SoC core has trapped (illegal instruction, misaligned access or ebreak) and is halted until reset."; } trap[1:1];
+    } soc_core_status @ 0x308;
+
+    reg {
+        field { sw=rw; hw=r; desc = "USER value passed to the AXI interconnect for transactions initiated by the AXI CDMA."; } cdma_axi_user[32] = 32'b0;
+    } cdma_axi_user @ 0x30C;
+
+    reg {
+        field { sw=r; hw=w; desc = "SS_GENERIC_FW_EXEC_CTRL as driven by Caliptra. Bits 0 and 1 of the first word read as 0."; } value[32];
+    } fw_exec_ctrl[4] @ 0x310;
 };
 
 regfile flash_ctrl_regs {
@@ -414,6 +442,73 @@ regfile fifo_regs {
         field { sw=r; hw=rw; desc = "RSVD in core"; } msg_fifo_empty = 1'b0;
         field { sw=r; hw=rw; desc = "RSVD in core"; } msg_fifo_full = 1'b0;
     } msg_fifo_status;
+
+    reg {
+        field { sw=r; hw=w; rd_swacc=true; desc = "Next byte written by the SoC core. Reading removes it from the FIFO."; } out_data[7:0];
+        field { sw=r; hw=w; desc = "out_data is valid."; } valid[8:8];
+    } soc_fifo_pop @ 0x28;
+
+    reg {
+        field { sw=rw; hw=r; wr_swacc=true; desc = "Byte to send to the SoC core. Dropped if the FIFO is full."; } in_data[7:0] = 8'b0;
+    } soc_fifo_push @ 0x2C;
+
+    reg {
+        field { sw=r; hw=w; desc = "FIFO from the SoC core is empty."; } to_host_empty[0:0];
+        field { sw=r; hw=w; desc = "FIFO from the SoC core is full."; } to_host_full[1:1];
+        field { sw=r; hw=w; desc = "FIFO to the SoC core is empty."; } to_core_empty[2:2];
+        field { sw=r; hw=w; desc = "FIFO to the SoC core is full."; } to_core_full[3:3];
+    } soc_fifo_status @ 0x30;
+};
+
+regfile hw_flash_ctrl_regs {
+    desc = "Flash controller implemented in the FPGA and backed by on-chip RAM.
+            The register layout matches flash_ctrl_regs. The flash contents are also
+            mapped directly on the AXI bus; see the Versal memory map.";
+
+    reg {
+        field { sw=rw; onwrite=woclr; hw=w; desc = "An operation finished with an error. Write 1 to clear."; } ERROR[0:0] = 1'b0;
+        field { sw=rw; onwrite=woclr; hw=w; desc = "An operation finished. Write 1 to clear."; } EVENT[1:1] = 1'b0;
+    } FL_INTERRUPT_STATE @ 0x00;
+
+    reg {
+        field { sw=rw; hw=r; desc = "Enable error interrupt"; } ERROR[0:0] = 1'b0;
+        field { sw=rw; hw=r; desc = "Enable event interrupt"; } EVENT[1:1] = 1'b0;
+    } FL_INTERRUPT_ENABLE @ 0x04;
+
+    reg {
+        field { sw=rw; hw=r; desc = "Page size in bytes. The controller uses 256 byte pages; an operation fails if this is less than 256."; } PAGE_SIZE[31:0] = 32'd256;
+    } PAGE_SIZE @ 0x08;
+
+    reg {
+        field { sw=rw; hw=r; desc = "The page number for read, write, erase operations"; } PAGE_NUM[31:0] = 32'b0;
+    } PAGE_NUM @ 0x0C;
+
+    reg {
+        field { sw=rw; hw=na; desc = "Not used by the controller. Page data is exchanged through FLASH_BUF."; } PAGE_ADDR[31:0] = 32'b0;
+    } PAGE_ADDR @ 0x10;
+
+    reg {
+        field { sw=rw; hw=r; desc = "\"1\" = Read page into FLASH_BUF, \"2\" = Write page from FLASH_BUF, \"3\" = Erase the 4 KiB sector containing the page"; } OP[2:1] = 2'b0;
+        field { sw=rw; hw=rw; desc = "Start the operation. Cleared by hardware when done."; } START[0:0] = 1'b0;
+    } FL_CONTROL @ 0x14;
+
+    reg {
+        field { sw=rw; hw=rw; desc = "Flash operation error. Set by hardware, cleared by software. \"1\" = Read Error, \"2\" = Write Error, \"4\" = Erase Error. An invalid operation code reports a read error."; } ERR[3:1] = 3'b0;
+        field { sw=rw; hw=rw; desc = "Flash operation done. Set by hardware, cleared by software."; } DONE[0:0] = 1'b0;
+    } OP_STATUS @ 0x18;
+
+    reg {
+        field { sw=r; hw=w; desc = "1 when idle. 0 while an operation is running; writes to PAGE_SIZE, PAGE_NUM, FL_CONTROL and FLASH_BUF are then ignored."; } EN[0:0] = 1'b1;
+    } CTRL_REGWEN @ 0x1C;
+
+    reg {
+        field { sw=r; hw=w; desc = "Total flash size in bytes"; } FLASH_SIZE[31:0];
+    } FLASH_SIZE @ 0x20;
+
+    reg {
+        field { sw=rw; hw=rw; } FLASH_BUF[32] = 32'h0;
+        desc = "Page buffer";
+    } FLASH_BUF[64] @ 0x100;
 };
 
 addrmap caliptra_fpga_realtime_regs {
@@ -424,4 +519,6 @@ addrmap caliptra_fpga_realtime_regs {
     fifo_regs fifo_regs @ 0xA4011000;
     flash_ctrl_regs primary_flash_ctrl_regs @ 0xA4012000;
     flash_ctrl_regs secondary_flash_ctrl_regs @ 0xA4013000;
+    external hw_flash_ctrl_regs primary_hw_flash_ctrl_regs @ 0xA4014000;
+    external hw_flash_ctrl_regs secondary_hw_flash_ctrl_regs @ 0xA4015000;
 };

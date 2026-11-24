@@ -93,6 +93,8 @@ remove_files [ glob $caliptrartlDir/src/spi_host/rtl/*.sv ]
 # Add FPGA specific sources
 add_files [ glob $fpgaDir/src/*.sv]
 add_files [ glob $fpgaDir/src/*.v]
+# RV32 core used by fpga_soc_core
+add_files $fpgaDir/third_party/picorv32/picorv32.v
 
 # Replace RAM with FPGA block ram
 remove_files [ glob $caliptrartlDir/src/ecc/rtl/ecc_ram_tdp_file.sv ]
@@ -169,6 +171,9 @@ ipx::associate_bus_interfaces -busif S_AXI_MCI -clock core_clk [ipx::current_cor
 ipx::associate_bus_interfaces -busif S_AXI_MCU_ROM -clock core_clk [ipx::current_core]
 ipx::associate_bus_interfaces -busif S_AXI_OTP -clock core_clk [ipx::current_core]
 ipx::associate_bus_interfaces -busif S_AXI_LCC -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif S_AXI_FPGA_MEM -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif S_AXI_CDMA -clock core_clk [ipx::current_core]
+ipx::associate_bus_interfaces -busif M_AXI_CDMA -clock core_clk [ipx::current_core]
 # Different clock used for I3C
 ipx::associate_bus_interfaces -busif S_AXI_I3C -clock i3c_clk [ipx::current_core]
 ipx::associate_bus_interfaces -busif S_AXI_I3C_SPARE -clock i3c_clk [ipx::current_core]

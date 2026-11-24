@@ -1,0 +1,16 @@
+# Licensed under the Apache-2.0 license
+
+[package]
+name = "soc_core_fw"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[workspace]

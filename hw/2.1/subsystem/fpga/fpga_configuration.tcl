@@ -138,7 +138,7 @@ close $xdc_fd
 #### Add AXI Infrastructure
 create_bd_cell -type ip -vlnv xilinx.com:ip:smartconnect:1.0 axi_interconnect_0
 set_property -dict [list \
-  CONFIG.NUM_MI {14} \
+  CONFIG.NUM_MI {15} \
   CONFIG.NUM_SI {6} \
   CONFIG.NUM_CLKS {2} \
   ] [get_bd_cells axi_interconnect_0]
@@ -170,13 +170,14 @@ register_axi_subordinate axi_interconnect_0 M02_AXI  0xA4040000 0x00002000 calip
 register_axi_subordinate axi_interconnect_0 M03_AXI  0xA8000000 0x01000000 caliptra_package_top_0/S_AXI_MCI       reg0    S_AXI_MCI          TRUE   "/ps_0/pl0_ref_clk"
 register_axi_subordinate axi_interconnect_0 M04_AXI  0xB0040000 0x00020000 caliptra_package_top_0/S_AXI_MCU_ROM   reg0    S_AXI_MCU_ROM      TRUE   "/ps_0/pl0_ref_clk"
 register_axi_subordinate axi_interconnect_0 M05_AXI  0xA4060000 0x00002000 caliptra_package_top_0/S_AXI_OTP       reg0    S_AXI_OTP          TRUE   "/ps_0/pl0_ref_clk"
-register_axi_subordinate axi_interconnect_0 M06_AXI  0xA4010000 0x00004000 caliptra_package_top_0/S_AXI_WRAPPER   reg0    S_AXI_WRAPPER      FALSE  "/ps_0/pl0_ref_clk"
+register_axi_subordinate axi_interconnect_0 M06_AXI  0xA4010000 0x00010000 caliptra_package_top_0/S_AXI_WRAPPER   reg0    S_AXI_WRAPPER      FALSE  "/ps_0/pl0_ref_clk"
 register_axi_subordinate axi_interconnect_0 M07_AXI  0xB0080000 0x00010000 otp_ram_bram_ctrl_0/S_AXI              Mem0    S_AXI_OTP_RAM      TRUE   "/ps_0/pl0_ref_clk"
 register_axi_subordinate axi_interconnect_0 M08_AXI  0xB00C0000 0x00040000 staging_sram_bram_ctrl_0/S_AXI         Mem0    S_AXI_STAGING_SRAM FALSE  "/ps_0/pl0_ref_clk"
 register_axi_subordinate axi_interconnect_0 M09_AXI  0xA4080000 0x00001000 xilinx_i3c_0/S_AXI                     Reg     S_AXI_XILINX_I3C   FALSE  "/ps_0/pl1_ref_clk"
 register_axi_subordinate axi_interconnect_0 M10_AXI  0xA4081000 0x00001000 axi_cdma_0/S_AXI_LITE                  Reg     S_AXI_XILINX_DMA   FALSE  "/ps_0/pl0_ref_clk"
 register_axi_subordinate axi_interconnect_0 M11_AXI  0xB0000000 0x00018000 cptra_rom_backdoor_bram_0/S_AXI        Mem0    S_AXI_CALIPTRA_ROM FALSE  "/ps_0/pl0_ref_clk"
 register_axi_subordinate axi_interconnect_0 M12_AXI  0xB0020000 0x00020000 mcu_rom_backdoor_bram_0/S_AXI          Mem0    S_AXI_SS_ROM       FALSE  "/ps_0/pl0_ref_clk"
+register_axi_subordinate axi_interconnect_0 M14_AXI  0xB4000000 0x04000000 caliptra_package_top_0/S_AXI_FPGA_MEM  reg0    S_AXI_FPGA_MEM     FALSE  "/ps_0/pl0_ref_clk"
 
 # Create reset block
 create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 proc_sys_reset_0
@@ -239,8 +240,10 @@ connect_bd_intf_net [get_bd_intf_pins caliptra_package_top_0/M_AXI_MCU_SB]   [ge
 set_property name M_AXI_MCU_IFU [get_bd_intf_nets caliptra_package_top_0_M_AXI_MCU_IFU]
 set_property name M_AXI_MCU_LSU [get_bd_intf_nets caliptra_package_top_0_M_AXI_MCU_LSU]
 set_property name M_AXI_MCU_SB [get_bd_intf_nets caliptra_package_top_0_M_AXI_MCU_SB]
-# XILINX DMA
-connect_bd_intf_net [get_bd_intf_pins axi_cdma_0/M_AXI] [get_bd_intf_pins axi_interconnect_0/S05_AXI]
+# XILINX DMA. Its manager port goes through the package, which adds the AxUSER value.
+connect_bd_intf_net [get_bd_intf_pins axi_cdma_0/M_AXI] [get_bd_intf_pins caliptra_package_top_0/S_AXI_CDMA]
+connect_bd_intf_net [get_bd_intf_pins caliptra_package_top_0/M_AXI_CDMA] [get_bd_intf_pins axi_interconnect_0/S05_AXI]
+connect_bd_net [get_bd_pins axi_cdma_0/cdma_introut] [get_bd_pins caliptra_package_top_0/cdma_irq]
 
 #### Connect axi subordinates to the interconnects ####
 for {set i 1} {$i <= $axi_subordinates(ID)} {incr i} {
@@ -338,8 +341,8 @@ connect_bd_net [get_bd_pins caliptra_package_top_0/ARM_USER] [get_bd_pins axi_in
 connect_bd_net [get_bd_pins caliptra_package_top_0/ARM_USER] [get_bd_pins axi_interconnect_0/S00_AXI_aruser]
 
 #### Assign address segments for all AXI managers ####
-set managers {ps_0/M_AXI_FPD caliptra_package_top_0/M_AXI_MCU_IFU caliptra_package_top_0/M_AXI_MCU_LSU caliptra_package_top_0/M_AXI_MCU_SB caliptra_package_top_0/M_AXI_CALIPTRA axi_cdma_0/Data}
-set base_offsets {0 0 0 0 0}
+set managers {ps_0/M_AXI_FPD caliptra_package_top_0/M_AXI_MCU_IFU caliptra_package_top_0/M_AXI_MCU_LSU caliptra_package_top_0/M_AXI_MCU_SB caliptra_package_top_0/M_AXI_CALIPTRA caliptra_package_top_0/M_AXI_CDMA}
+set base_offsets {0 0 0 0 0 0}
 
 foreach manager $managers base_offset $base_offsets {
   for {set i 1} {$i <= $axi_subordinates(ID)} {incr i} {
@@ -347,6 +350,9 @@ foreach manager $managers base_offset $base_offsets {
     assign_bd_address -offset [expr $base_offset + $axi_subordinates($i,address)] -range $axi_subordinates($i,size) -target_address_space [get_bd_addr_spaces $manager] [get_bd_addr_segs $axi_subordinates($i,dst)/$axi_subordinates($i,addrseg)] -force
   }
 }
+
+# The AXI CDMA reaches every address through the package pass-through.
+assign_bd_address -offset 0x00000000 -range 4G -target_address_space [get_bd_addr_spaces axi_cdma_0/Data] [get_bd_addr_segs caliptra_package_top_0/S_AXI_CDMA/reg0] -force
 
 # Connect JTAG signals to PS GPIO pins
 connect_bd_net [get_bd_pins caliptra_package_top_0/jtag_out] [get_bd_pins $ps_gpio_i]
