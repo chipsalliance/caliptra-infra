@@ -11,8 +11,8 @@ This directory consolidates all Caliptra FPGA wrapper configurations, Vivado bui
 | `hw/2.0/subsystem/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-mcu-sw` (`main`) | `hw/2.0/caliptra-ss` -> `caliptra-ss` @ `b5718a0f7fe7936b5082a8dfc23add896755af3a` |
 | `hw/2.1/core/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-sw` (`main`) | `hw/2.1/caliptra-ss` -> `caliptra-ss` @ `3350c70a296bf897abe8c02e5ec0da69cc83ee16` (shared with `hw/2.1/subsystem/`) |
 | `hw/2.1/subsystem/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-mcu-sw` (`main-2.1:hw/rev-2_1`) | `hw/2.1/caliptra-ss` -> `caliptra-ss` @ `3350c70a296bf897abe8c02e5ec0da69cc83ee16` |
-| `hw/2.2/core/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-sw` (`caliptra-2.2-dev`) | `hw/2.2/caliptra-ss` -> `caliptra-ss` @ `6dcd56fa1969b40786820d5e14f686f38fa879f2` (`main`, shared with `hw/2.2/subsystem/`) |
-| `hw/2.2/subsystem/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-mcu-sw` (`caliptra-mcu-dev-2.2:hw/latest`) | `hw/2.2/caliptra-ss` -> `caliptra-ss` @ `6dcd56fa1969b40786820d5e14f686f38fa879f2` (`main`) |
+| `hw/2.2/core/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-sw` (`caliptra-2.2-dev`) | `hw/2.2/caliptra-ss` -> `caliptra-ss` @ `ff7e67426813889c07d465c89c97e6d1398c6a4f` (`main`, shared with `hw/2.2/subsystem/`) |
+| `hw/2.2/subsystem/` | VCK190 (`xcvc1902-vsva2197-2MP-e-S`) | `chipsalliance/caliptra-mcu-sw` (`caliptra-mcu-dev-2.2:hw/latest`) | `hw/2.2/caliptra-ss` -> `caliptra-ss` @ `ff7e67426813889c07d465c89c97e6d1398c6a4f` (`main`) |
 
 ## Bitstream Variants
 
