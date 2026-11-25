@@ -90,6 +90,9 @@ impl io::Read for FtdiUartReader {
 
 impl io::Read for FtdiUartReaderBlocking {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
         let start_time = Instant::now();
         loop {
             let bytes_read = self
@@ -101,12 +104,87 @@ impl io::Read for FtdiUartReaderBlocking {
                 return Ok(bytes_read);
             }
             if let Some(timeout) = self.timeout {
-                if start_time.elapsed() > timeout {
-                    Err(io::Error::new(
+                if start_time.elapsed() >= timeout {
+                    return Err(io::Error::new(
                         ErrorKind::TimedOut,
                         "timed out reading from FPGA UART",
-                    ))?
+                    ));
                 }
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum UartEvent {
+    Line(String),
+    TickTimeout,
+    Eof,
+}
+
+/// Line-buffered UART reader that preserves partial lines across `ErrorKind::TimedOut` ticks.
+pub struct UartLineStream<R> {
+    reader: R,
+    pending: Vec<u8>,
+}
+
+const MAX_PENDING_LINE_BYTES: usize = 64 * 1024;
+
+impl<R: io::Read> UartLineStream<R> {
+    pub fn new(reader: R) -> Self {
+        Self {
+            reader,
+            pending: Vec::new(),
+        }
+    }
+
+    fn take_complete_line(&mut self) -> Option<String> {
+        let pos = self.pending.iter().position(|&b| b == b'\n')?;
+        let mut line_bytes: Vec<u8> = self.pending.drain(..=pos).collect();
+        while matches!(line_bytes.last(), Some(b'\n' | b'\r')) {
+            line_bytes.pop();
+        }
+        Some(String::from_utf8_lossy(&line_bytes).into_owned())
+    }
+
+    pub fn next_event(&mut self) -> io::Result<UartEvent> {
+        if let Some(line) = self.take_complete_line() {
+            return Ok(UartEvent::Line(line));
+        }
+
+        let mut chunk = [0_u8; 4096];
+        loop {
+            match self.reader.read(&mut chunk) {
+                Ok(0) => {
+                    if self.pending.is_empty() {
+                        return Ok(UartEvent::Eof);
+                    }
+                    let mut line_bytes = std::mem::take(&mut self.pending);
+                    while matches!(line_bytes.last(), Some(b'\n' | b'\r')) {
+                        line_bytes.pop();
+                    }
+                    return Ok(UartEvent::Line(
+                        String::from_utf8_lossy(&line_bytes).into_owned(),
+                    ));
+                }
+                Ok(n) => {
+                    self.pending.extend_from_slice(&chunk[..n]);
+                    if let Some(line) = self.take_complete_line() {
+                        return Ok(UartEvent::Line(line));
+                    }
+                    if self.pending.len() >= MAX_PENDING_LINE_BYTES {
+                        let line_bytes = std::mem::take(&mut self.pending);
+                        return Ok(UartEvent::Line(
+                            String::from_utf8_lossy(&line_bytes).into_owned(),
+                        ));
+                    }
+                }
+                Err(e) if e.kind() == ErrorKind::Interrupted => continue,
+                Err(e) if matches!(e.kind(), ErrorKind::TimedOut | ErrorKind::WouldBlock) => {
+                    return Ok(UartEvent::TickTimeout);
+                }
+                Err(e) => return Err(e),
             }
         }
     }
@@ -122,5 +200,67 @@ impl io::Write for FtdiUartWriter {
 
     fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::VecDeque;
+
+    enum MockStep {
+        Data(&'static [u8]),
+        Timeout,
+        Eof,
+    }
+
+    struct MockReader {
+        steps: VecDeque<MockStep>,
+    }
+
+    impl io::Read for MockReader {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            match self.steps.pop_front().unwrap_or(MockStep::Eof) {
+                MockStep::Data(bytes) => {
+                    let n = bytes.len().min(buf.len());
+                    buf[..n].copy_from_slice(&bytes[..n]);
+                    Ok(n)
+                }
+                MockStep::Timeout => Err(io::Error::new(ErrorKind::TimedOut, "tick")),
+                MockStep::Eof => Ok(0),
+            }
+        }
+    }
+
+    #[test]
+    fn test_uart_line_stream_preserves_partial_lines_across_timeouts() {
+        let reader = MockReader {
+            steps: VecDeque::from([
+                MockStep::Data(b"CALIPTRA_FPGA_INFO {\"ip\":\"10.0.0.5\""),
+                MockStep::Timeout,
+                MockStep::Data(b",\"health_port\":8080,\"variant\":\"core\"}\r\nsecond"),
+                MockStep::Data(b" line\nthird"),
+                MockStep::Eof,
+            ]),
+        };
+
+        let mut stream = UartLineStream::new(reader);
+        assert_eq!(stream.next_event().unwrap(), UartEvent::TickTimeout);
+        assert_eq!(
+            stream.next_event().unwrap(),
+            UartEvent::Line(
+                r#"CALIPTRA_FPGA_INFO {"ip":"10.0.0.5","health_port":8080,"variant":"core"}"#
+                    .to_string()
+            )
+        );
+        assert_eq!(
+            stream.next_event().unwrap(),
+            UartEvent::Line("second line".to_string())
+        );
+        assert_eq!(
+            stream.next_event().unwrap(),
+            UartEvent::Line("third".to_string())
+        );
+        assert_eq!(stream.next_event().unwrap(), UartEvent::Eof);
     }
 }
