@@ -30,6 +30,7 @@ in
   nix.gc.automatic = true;
   nix.gc.persistent = true;
   nix.gc.dates = "weekly";
+  nix.gc.options = "--delete-older-than 14d";
 
   boot.loader.grub.enable = false;
   boot.loader.generic-extlinux-compatible.enable = true;

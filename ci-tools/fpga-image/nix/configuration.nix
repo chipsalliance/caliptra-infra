@@ -9,6 +9,7 @@
   modulesPath,
   buildPkgs ? pkgs.buildPackages,
   targetPkgs ? pkgs,
+  githubRunnerPkg ? pkgs.github-runner,
   ...
 }:
 
@@ -106,11 +107,13 @@ let
   # runner environment (`PATH`, `NIX_LD`, `NIX_LD_LIBRARY_PATH`, TLS certs) before
   # launching `Runner.Listener` with a one-time JIT configuration.
   runGhaJit = pkgs.writeShellScript "run-gha-jit" ''
-    set -euo pipefail
+    set -eo pipefail
+    export XDG_STATE_HOME="''${XDG_STATE_HOME:-$HOME/.local/state}"
     if [ -f /etc/set-environment ]; then
       # shellcheck disable=SC1091
       . /etc/set-environment
     fi
+    set -u
     export NIX_LD="/run/current-system/sw/share/nix-ld/lib/ld.so"
     export NIX_LD_LIBRARY_PATH="/run/current-system/sw/share/nix-ld/lib"
     export SSL_CERT_FILE="/etc/ssl/certs/ca-certificates.crt"
@@ -143,7 +146,7 @@ let
       util-linux
       su
       bashInteractive
-      github-runner
+      githubRunnerPkg
     ];
     text =
       lib.optionalString isZcu104 ''
@@ -166,9 +169,9 @@ let
               echo "GHA runner complete"
             }
 
-            # Wait up to 15s for DHCPv4 on primary wired NIC (`end0` or `eth0`) and announce `/healthz` endpoint to fpga-boss
+            # Wait up to 35s for DHCPv4 on primary wired NIC (`end0` or `eth0`) and announce `/healthz` endpoint to fpga-boss
             FPGA_IP=""
-            for _ in $(seq 1 15); do
+            for _ in $(seq 1 35); do
               FPGA_IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '$2 != "lo" { split($4, a, "/"); print a[1]; exit }' || true)
               if [[ -n "$FPGA_IP" ]]; then
                 break
@@ -184,7 +187,15 @@ let
             echo "Available commands:"
             echo "  runner-jitconfig <base64>"
             echo "  login"
-            read -r -e -p "> " cmd || true
+            saved_stty=$(stty -g 2>/dev/null || true)
+            # Disable canonical 4095-byte line limit and GNU Readline (`-e`) echo stalls on long base64 UART lines.
+            stty -icanon -echo icrnl min 1 time 0 2>/dev/null || true
+            printf "> "
+            IFS= read -r cmd || true
+            printf "\n"
+            if [[ -n "$saved_stty" ]]; then
+              stty "$saved_stty" 2>/dev/null || true
+            fi
 
             read -r -a cmd_array <<< "$cmd"
             if [[ "$cmd" == "login" ]]; then
@@ -221,6 +232,11 @@ let
   # Stub `podman` binary so `cargo xtask` host checks pass when run directly on the FPGA
   podmanStub = pkgs.writeShellScriptBin "podman" ''
     echo "stub"
+  '';
+
+  gdbMultiarch = pkgs.runCommand "gdb-multiarch" { } ''
+    mkdir -p $out/bin
+    ln -s ${pkgs.gdb}/bin/gdb $out/bin/gdb-multiarch
   '';
 in
 {
@@ -307,11 +323,22 @@ in
 
   systemd.network = {
     enable = true;
+    # VCK190 exposes two MACs (`end0`, `end1`) where `end1` has no PHY/cable attached;
+    # wait up to 45s on whichever wired NIC gets an IPv4 DHCP lease so `CALIPTRA_FPGA_INFO`
+    # has an IPv4 address without burning 120s on disconnected `end1`.
+    wait-online = {
+      anyInterface = true;
+      timeout = 45;
+    };
     networks."10-wired" = {
       matchConfig.Name = "end* eth*";
       networkConfig = {
         DHCP = "yes";
         IPv6AcceptRA = true;
+      };
+      linkConfig = {
+        RequiredForOnline = "routable";
+        RequiredFamilyForOnline = "ipv4";
       };
     };
   };
@@ -428,7 +455,8 @@ in
     "L+ /usr/bin/cargo-nextest - - - - ${pkgs.cargo-nextest}/bin/cargo-nextest"
     "L+ /usr/bin/rsync - - - - ${pkgs.rsync}/bin/rsync"
     "L+ /usr/bin/podman - - - - ${podmanStub}/bin/podman"
-    "L+ /home/runner/run.sh - - - - ${pkgs.github-runner}/bin/run.sh"
+    "L+ /usr/bin/gdb-multiarch - - - - ${pkgs.gdb}/bin/gdb"
+    "L+ /home/runner/run.sh - - - - ${githubRunnerPkg}/bin/run.sh"
   ];
 
   # System packages matching `build.sh`
@@ -443,6 +471,7 @@ in
       fping
       openocd
       gdb
+      gdbMultiarch
       cargo-nextest
       rsync
       unzip
@@ -450,7 +479,7 @@ in
       kmod
       pciutils
       usbutils
-      github-runner
+      githubRunnerPkg
       fpgaHealthd
       podmanStub
       setMacAddressScript
@@ -469,7 +498,7 @@ in
     Build system: nixos-${config.system.nixos.release}
     Image env : ${if cfg.isDev then "dev" else "non-dev"}
     Image variant : ${cfg.variant}
-    Runner version : ${pkgs.github-runner.version}
+    Runner version : ${githubRunnerPkg.version}
     Kernel source : ${if isZcu104 then "canonical-zcu-5.15" else "nix-linux-xlnx"}
     Workflow name : ${cfg.workflowInfo.workflow}
     Workflow branch : ${cfg.workflowInfo.headRef}
