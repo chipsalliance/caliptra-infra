@@ -9,8 +9,6 @@ set CG_EN FALSE
 set RTL_VERSION latest
 set BOARD VCK190
 set ITRNG TRUE
-# Lab-only dual-iTRNG build with a cold-reset-gated ES1 strap.
-set DUAL_ITRNG FALSE
 set DEBUG FALSE
 set FAST_I3C TRUE
 set CORE_CLK_MHZ 18
@@ -43,6 +41,11 @@ foreach arg $argv {
   regexp {(.*)=(.*)} $arg fullmatch option value
   set $option "$value"
 }
+# Dual-iTRNG capable build with a cold-reset-gated ES1 strap (defaults to ES0-only at reset).
+# Default to ITRNG when not explicitly specified so ITRNG=FALSE remains valid.
+if {[info exists DUAL_ITRNG] == 0} {
+  set DUAL_ITRNG $ITRNG
+}
 # If VERSION was not set by tclargs, set it from the commit ID.
 # This assumes it is run from within caliptra-sw. If building from outside caliptra-sw call with "VERSION=[hex number]"
 if {[info exists VERSION] == 0} {
@@ -63,6 +66,7 @@ file mkdir $caliptrapackageDir
 set ssrtlDir $fpgaDir/../../caliptra-ss
 set caliptrartlDir $ssrtlDir/third_party/caliptra-rtl
 puts "ITRNG: $ITRNG"
+puts "DUAL_ITRNG: $DUAL_ITRNG"
 puts "CG_EN: $CG_EN"
 puts "RTL_VERSION: $RTL_VERSION"
 puts "Using RTL directory $caliptrartlDir"
