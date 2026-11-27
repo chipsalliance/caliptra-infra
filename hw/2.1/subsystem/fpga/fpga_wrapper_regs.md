@@ -10,20 +10,22 @@ Don't override. Generated from: caliptra_fpga_realtime_regs
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0xA4013200
+- Size: 0xA4015200
 
-|  Offset  |        Identifier       |Name|
-|----------|-------------------------|----|
-|0xA4010000|      interface_regs     |  — |
-|0xA4011000|        fifo_regs        |  — |
-|0xA4012000| primary_flash_ctrl_regs |  — |
-|0xA4013000|secondary_flash_ctrl_regs|  — |
+|  Offset  |         Identifier         |Name|
+|----------|----------------------------|----|
+|0xA4010000|       interface_regs       |  — |
+|0xA4011000|          fifo_regs         |  — |
+|0xA4012000|   primary_flash_ctrl_regs  |  — |
+|0xA4013000|  secondary_flash_ctrl_regs |  — |
+|0xA4014000| primary_hw_flash_ctrl_regs |  — |
+|0xA4015000|secondary_hw_flash_ctrl_regs|  — |
 
 ## interface_regs register file
 
 - Absolute Address: 0xA4010000
 - Base Offset: 0xA4010000
-- Size: 0x284
+- Size: 0x320
 
 |Offset|                  Identifier                  |Name|
 |------|----------------------------------------------|----|
@@ -144,6 +146,14 @@ Don't override. Generated from: caliptra_fpga_realtime_regs
 | 0x278|        ocp_lock_auxiliary_data_reg[6]        |  — |
 | 0x27C|        ocp_lock_auxiliary_data_reg[7]        |  — |
 | 0x280|             ocp_lock_control_reg             |  — |
+| 0x300|                 fpga_features                |  — |
+| 0x304|               soc_core_control               |  — |
+| 0x308|                soc_core_status               |  — |
+| 0x30C|                 cdma_axi_user                |  — |
+| 0x310|                fw_exec_ctrl[0]               |  — |
+| 0x314|                fw_exec_ctrl[1]               |  — |
+| 0x318|                fw_exec_ctrl[2]               |  — |
+| 0x31C|                fw_exec_ctrl[3]               |  — |
 
 ### fpga_magic register
 
@@ -1905,11 +1915,160 @@ Don't override. Generated from: caliptra_fpga_realtime_regs
 
 <p>Reserved bits for OCP LOCK Control</p>
 
+### fpga_features register
+
+- Absolute Address: 0xA4010300
+- Base Offset: 0x300
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 | hw_flash |   r  | 0x1 |  — |
+|  1 |   cdma   |   r  | 0x1 |  — |
+|  2 | soc_core |   r  | 0x1 |  — |
+
+#### hw_flash field
+
+<p>Hardware flash controllers (primary_hw_flash_ctrl_regs, secondary_hw_flash_ctrl_regs) are present.</p>
+
+#### cdma field
+
+<p>The AXI CDMA interrupt and cdma_axi_user are connected.</p>
+
+#### soc_core field
+
+<p>SoC RV32 core, its SRAM and the soc_fifo registers are present.</p>
+
+### soc_core_control register
+
+- Absolute Address: 0xA4010304
+- Base Offset: 0x304
+- Size: 0x4
+
+|Bits| Identifier|Access|Reset|Name|
+|----|-----------|------|-----|----|
+| 6:0|  exec_bit |  rw  | 0x3 |  — |
+|  8 |force_reset|  rw  | 0x0 |  — |
+|  9 | force_run |  rw  | 0x0 |  — |
+
+#### exec_bit field
+
+<p>Bit of SS_GENERIC_FW_EXEC_CTRL that releases the SoC core from reset. Bits 0 and 1 are not exported by the subsystem and read as 0.</p>
+
+#### force_reset field
+
+<p>Hold the SoC core in reset regardless of SS_GENERIC_FW_EXEC_CTRL.</p>
+
+#### force_run field
+
+<p>Release the SoC core from reset regardless of SS_GENERIC_FW_EXEC_CTRL. force_reset has priority.</p>
+
+### soc_core_status register
+
+- Absolute Address: 0xA4010308
+- Base Offset: 0x308
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |   rst_b  |   r  |  —  |  — |
+|  1 |   trap   |   r  |  —  |  — |
+
+#### rst_b field
+
+<p>SoC core reset (active low).</p>
+
+#### trap field
+
+<p>SoC core has trapped (illegal instruction, misaligned access or ebreak) and is halted until reset.</p>
+
+### cdma_axi_user register
+
+- Absolute Address: 0xA401030C
+- Base Offset: 0x30C
+- Size: 0x4
+
+|Bits|  Identifier |Access|Reset|Name|
+|----|-------------|------|-----|----|
+|31:0|cdma_axi_user|  rw  | 0x0 |  — |
+
+#### cdma_axi_user field
+
+<p>USER value passed to the AXI interconnect for transactions initiated by the AXI CDMA.</p>
+
+### fw_exec_ctrl register
+
+- Absolute Address: 0xA4010310
+- Base Offset: 0x310
+- Size: 0x4
+- Array Dimensions: [4]
+- Array Stride: 0x4
+- Total Size: 0x10
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   value  |   r  |  —  |  — |
+
+#### value field
+
+<p>SS_GENERIC_FW_EXEC_CTRL as driven by Caliptra. Bits 0 and 1 of the first word read as 0.</p>
+
+### fw_exec_ctrl register
+
+- Absolute Address: 0xA4010314
+- Base Offset: 0x310
+- Size: 0x4
+- Array Dimensions: [4]
+- Array Stride: 0x4
+- Total Size: 0x10
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   value  |   r  |  —  |  — |
+
+#### value field
+
+<p>SS_GENERIC_FW_EXEC_CTRL as driven by Caliptra. Bits 0 and 1 of the first word read as 0.</p>
+
+### fw_exec_ctrl register
+
+- Absolute Address: 0xA4010318
+- Base Offset: 0x310
+- Size: 0x4
+- Array Dimensions: [4]
+- Array Stride: 0x4
+- Total Size: 0x10
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   value  |   r  |  —  |  — |
+
+#### value field
+
+<p>SS_GENERIC_FW_EXEC_CTRL as driven by Caliptra. Bits 0 and 1 of the first word read as 0.</p>
+
+### fw_exec_ctrl register
+
+- Absolute Address: 0xA401031C
+- Base Offset: 0x310
+- Size: 0x4
+- Array Dimensions: [4]
+- Array Stride: 0x4
+- Total Size: 0x10
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   value  |   r  |  —  |  — |
+
+#### value field
+
+<p>SS_GENERIC_FW_EXEC_CTRL as driven by Caliptra. Bits 0 and 1 of the first word read as 0.</p>
+
 ## fifo_regs register file
 
 - Absolute Address: 0xA4011000
 - Base Offset: 0xA4011000
-- Size: 0x28
+- Size: 0x34
 
 |Offset|    Identifier   |Name|
 |------|-----------------|----|
@@ -1923,6 +2082,9 @@ Don't override. Generated from: caliptra_fpga_realtime_regs
 | 0x1C |   msg_fifo_pop  |  — |
 | 0x20 |  msg_fifo_push  |  — |
 | 0x24 | msg_fifo_status |  — |
+| 0x28 |   soc_fifo_pop  |  — |
+| 0x2C |  soc_fifo_push  |  — |
+| 0x30 | soc_fifo_status |  — |
 
 ### log_fifo_data register
 
@@ -2061,6 +2223,68 @@ Don't override. Generated from: caliptra_fpga_realtime_regs
 #### msg_fifo_full field
 
 <p>RSVD in core</p>
+
+### soc_fifo_pop register
+
+- Absolute Address: 0xA4011028
+- Base Offset: 0x28
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0| out_data |   r  |  —  |  — |
+|  8 |   valid  |   r  |  —  |  — |
+
+#### out_data field
+
+<p>Next byte written by the SoC core. Reading removes it from the FIFO.</p>
+
+#### valid field
+
+<p>out_data is valid.</p>
+
+### soc_fifo_push register
+
+- Absolute Address: 0xA401102C
+- Base Offset: 0x2C
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  in_data |  rw  | 0x0 |  — |
+
+#### in_data field
+
+<p>Byte to send to the SoC core. Dropped if the FIFO is full.</p>
+
+### soc_fifo_status register
+
+- Absolute Address: 0xA4011030
+- Base Offset: 0x30
+- Size: 0x4
+
+|Bits|  Identifier |Access|Reset|Name|
+|----|-------------|------|-----|----|
+|  0 |to_host_empty|   r  |  —  |  — |
+|  1 | to_host_full|   r  |  —  |  — |
+|  2 |to_core_empty|   r  |  —  |  — |
+|  3 | to_core_full|   r  |  —  |  — |
+
+#### to_host_empty field
+
+<p>FIFO from the SoC core is empty.</p>
+
+#### to_host_full field
+
+<p>FIFO from the SoC core is full.</p>
+
+#### to_core_empty field
+
+<p>FIFO to the SoC core is empty.</p>
+
+#### to_core_full field
+
+<p>FIFO to the SoC core is full.</p>
 
 ## primary_flash_ctrl_regs register file
 
@@ -4437,3 +4661,2387 @@ Don't override. Generated from: caliptra_fpga_realtime_regs
 |Bits|Identifier|Access|   Reset  |Name|
 |----|----------|------|----------|----|
 |31:0| FLASH_BUF|  rw  |0xFFFFFFFF|  — |
+
+## primary_hw_flash_ctrl_regs register file
+
+- Absolute Address: 0xA4014000
+- Base Offset: 0xA4014000
+- Size: 0x200
+
+<p>Flash controller implemented in the FPGA and backed by on-chip RAM.
+The register layout matches flash_ctrl_regs. The flash contents are also
+mapped directly on the AXI bus; see the Versal memory map.</p>
+
+|Offset|     Identifier    |Name|
+|------|-------------------|----|
+| 0x000| FL_INTERRUPT_STATE|  — |
+| 0x004|FL_INTERRUPT_ENABLE|  — |
+| 0x008|     PAGE_SIZE     |  — |
+| 0x00C|      PAGE_NUM     |  — |
+| 0x010|     PAGE_ADDR     |  — |
+| 0x014|     FL_CONTROL    |  — |
+| 0x018|     OP_STATUS     |  — |
+| 0x01C|    CTRL_REGWEN    |  — |
+| 0x020|     FLASH_SIZE    |  — |
+| 0x100|    FLASH_BUF[0]   |  — |
+| 0x104|    FLASH_BUF[1]   |  — |
+| 0x108|    FLASH_BUF[2]   |  — |
+| 0x10C|    FLASH_BUF[3]   |  — |
+| 0x110|    FLASH_BUF[4]   |  — |
+| 0x114|    FLASH_BUF[5]   |  — |
+| 0x118|    FLASH_BUF[6]   |  — |
+| 0x11C|    FLASH_BUF[7]   |  — |
+| 0x120|    FLASH_BUF[8]   |  — |
+| 0x124|    FLASH_BUF[9]   |  — |
+| 0x128|   FLASH_BUF[10]   |  — |
+| 0x12C|   FLASH_BUF[11]   |  — |
+| 0x130|   FLASH_BUF[12]   |  — |
+| 0x134|   FLASH_BUF[13]   |  — |
+| 0x138|   FLASH_BUF[14]   |  — |
+| 0x13C|   FLASH_BUF[15]   |  — |
+| 0x140|   FLASH_BUF[16]   |  — |
+| 0x144|   FLASH_BUF[17]   |  — |
+| 0x148|   FLASH_BUF[18]   |  — |
+| 0x14C|   FLASH_BUF[19]   |  — |
+| 0x150|   FLASH_BUF[20]   |  — |
+| 0x154|   FLASH_BUF[21]   |  — |
+| 0x158|   FLASH_BUF[22]   |  — |
+| 0x15C|   FLASH_BUF[23]   |  — |
+| 0x160|   FLASH_BUF[24]   |  — |
+| 0x164|   FLASH_BUF[25]   |  — |
+| 0x168|   FLASH_BUF[26]   |  — |
+| 0x16C|   FLASH_BUF[27]   |  — |
+| 0x170|   FLASH_BUF[28]   |  — |
+| 0x174|   FLASH_BUF[29]   |  — |
+| 0x178|   FLASH_BUF[30]   |  — |
+| 0x17C|   FLASH_BUF[31]   |  — |
+| 0x180|   FLASH_BUF[32]   |  — |
+| 0x184|   FLASH_BUF[33]   |  — |
+| 0x188|   FLASH_BUF[34]   |  — |
+| 0x18C|   FLASH_BUF[35]   |  — |
+| 0x190|   FLASH_BUF[36]   |  — |
+| 0x194|   FLASH_BUF[37]   |  — |
+| 0x198|   FLASH_BUF[38]   |  — |
+| 0x19C|   FLASH_BUF[39]   |  — |
+| 0x1A0|   FLASH_BUF[40]   |  — |
+| 0x1A4|   FLASH_BUF[41]   |  — |
+| 0x1A8|   FLASH_BUF[42]   |  — |
+| 0x1AC|   FLASH_BUF[43]   |  — |
+| 0x1B0|   FLASH_BUF[44]   |  — |
+| 0x1B4|   FLASH_BUF[45]   |  — |
+| 0x1B8|   FLASH_BUF[46]   |  — |
+| 0x1BC|   FLASH_BUF[47]   |  — |
+| 0x1C0|   FLASH_BUF[48]   |  — |
+| 0x1C4|   FLASH_BUF[49]   |  — |
+| 0x1C8|   FLASH_BUF[50]   |  — |
+| 0x1CC|   FLASH_BUF[51]   |  — |
+| 0x1D0|   FLASH_BUF[52]   |  — |
+| 0x1D4|   FLASH_BUF[53]   |  — |
+| 0x1D8|   FLASH_BUF[54]   |  — |
+| 0x1DC|   FLASH_BUF[55]   |  — |
+| 0x1E0|   FLASH_BUF[56]   |  — |
+| 0x1E4|   FLASH_BUF[57]   |  — |
+| 0x1E8|   FLASH_BUF[58]   |  — |
+| 0x1EC|   FLASH_BUF[59]   |  — |
+| 0x1F0|   FLASH_BUF[60]   |  — |
+| 0x1F4|   FLASH_BUF[61]   |  — |
+| 0x1F8|   FLASH_BUF[62]   |  — |
+| 0x1FC|   FLASH_BUF[63]   |  — |
+
+### FL_INTERRUPT_STATE register
+
+- Absolute Address: 0xA4014000
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|  Access |Reset|Name|
+|----|----------|---------|-----|----|
+|  0 |   ERROR  |rw, woclr| 0x0 |  — |
+|  1 |   EVENT  |rw, woclr| 0x0 |  — |
+
+#### ERROR field
+
+<p>An operation finished with an error. Write 1 to clear.</p>
+
+#### EVENT field
+
+<p>An operation finished. Write 1 to clear.</p>
+
+### FL_INTERRUPT_ENABLE register
+
+- Absolute Address: 0xA4014004
+- Base Offset: 0x4
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |   ERROR  |  rw  | 0x0 |  — |
+|  1 |   EVENT  |  rw  | 0x0 |  — |
+
+#### ERROR field
+
+<p>Enable error interrupt</p>
+
+#### EVENT field
+
+<p>Enable event interrupt</p>
+
+### PAGE_SIZE register
+
+- Absolute Address: 0xA4014008
+- Base Offset: 0x8
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| PAGE_SIZE|  rw  |0x100|  — |
+
+#### PAGE_SIZE field
+
+<p>Page size in bytes. The controller uses 256 byte pages; an operation fails if this is less than 256.</p>
+
+### PAGE_NUM register
+
+- Absolute Address: 0xA401400C
+- Base Offset: 0xC
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| PAGE_NUM |  rw  | 0x0 |  — |
+
+#### PAGE_NUM field
+
+<p>The page number for read, write, erase operations</p>
+
+### PAGE_ADDR register
+
+- Absolute Address: 0xA4014010
+- Base Offset: 0x10
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| PAGE_ADDR|  rw  | 0x0 |  — |
+
+#### PAGE_ADDR field
+
+<p>Not used by the controller. Page data is exchanged through FLASH_BUF.</p>
+
+### FL_CONTROL register
+
+- Absolute Address: 0xA4014014
+- Base Offset: 0x14
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |   START  |  rw  | 0x0 |  — |
+| 2:1|    OP    |  rw  | 0x0 |  — |
+
+#### START field
+
+<p>Start the operation. Cleared by hardware when done.</p>
+
+#### OP field
+
+<p>"1" = Read page into FLASH_BUF, "2" = Write page from FLASH_BUF, "3" = Erase the 4 KiB sector containing the page</p>
+
+### OP_STATUS register
+
+- Absolute Address: 0xA4014018
+- Base Offset: 0x18
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |   DONE   |  rw  | 0x0 |  — |
+| 3:1|    ERR   |  rw  | 0x0 |  — |
+
+#### DONE field
+
+<p>Flash operation done. Set by hardware, cleared by software.</p>
+
+#### ERR field
+
+<p>Flash operation error. Set by hardware, cleared by software. "1" = Read Error, "2" = Write Error, "4" = Erase Error. An invalid operation code reports a read error.</p>
+
+### CTRL_REGWEN register
+
+- Absolute Address: 0xA401401C
+- Base Offset: 0x1C
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |    EN    |   r  | 0x1 |  — |
+
+#### EN field
+
+<p>1 when idle. 0 while an operation is running; writes to PAGE_SIZE, PAGE_NUM, FL_CONTROL and FLASH_BUF are then ignored.</p>
+
+### FLASH_SIZE register
+
+- Absolute Address: 0xA4014020
+- Base Offset: 0x20
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|FLASH_SIZE|   r  |  —  |  — |
+
+#### FLASH_SIZE field
+
+<p>Total flash size in bytes</p>
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014100
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014104
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014108
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401410C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014110
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014114
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014118
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401411C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014120
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014124
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014128
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401412C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014130
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014134
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014138
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401413C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014140
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014144
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014148
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401414C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014150
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014154
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014158
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401415C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014160
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014164
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014168
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401416C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014170
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014174
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014178
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401417C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014180
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014184
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014188
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401418C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014190
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014194
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4014198
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401419C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141A0
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141A4
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141A8
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141AC
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141B0
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141B4
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141B8
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141BC
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141C0
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141C4
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141C8
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141CC
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141D0
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141D4
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141D8
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141DC
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141E0
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141E4
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141E8
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141EC
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141F0
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141F4
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141F8
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40141FC
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+## secondary_hw_flash_ctrl_regs register file
+
+- Absolute Address: 0xA4015000
+- Base Offset: 0xA4015000
+- Size: 0x200
+
+<p>Flash controller implemented in the FPGA and backed by on-chip RAM.
+The register layout matches flash_ctrl_regs. The flash contents are also
+mapped directly on the AXI bus; see the Versal memory map.</p>
+
+|Offset|     Identifier    |Name|
+|------|-------------------|----|
+| 0x000| FL_INTERRUPT_STATE|  — |
+| 0x004|FL_INTERRUPT_ENABLE|  — |
+| 0x008|     PAGE_SIZE     |  — |
+| 0x00C|      PAGE_NUM     |  — |
+| 0x010|     PAGE_ADDR     |  — |
+| 0x014|     FL_CONTROL    |  — |
+| 0x018|     OP_STATUS     |  — |
+| 0x01C|    CTRL_REGWEN    |  — |
+| 0x020|     FLASH_SIZE    |  — |
+| 0x100|    FLASH_BUF[0]   |  — |
+| 0x104|    FLASH_BUF[1]   |  — |
+| 0x108|    FLASH_BUF[2]   |  — |
+| 0x10C|    FLASH_BUF[3]   |  — |
+| 0x110|    FLASH_BUF[4]   |  — |
+| 0x114|    FLASH_BUF[5]   |  — |
+| 0x118|    FLASH_BUF[6]   |  — |
+| 0x11C|    FLASH_BUF[7]   |  — |
+| 0x120|    FLASH_BUF[8]   |  — |
+| 0x124|    FLASH_BUF[9]   |  — |
+| 0x128|   FLASH_BUF[10]   |  — |
+| 0x12C|   FLASH_BUF[11]   |  — |
+| 0x130|   FLASH_BUF[12]   |  — |
+| 0x134|   FLASH_BUF[13]   |  — |
+| 0x138|   FLASH_BUF[14]   |  — |
+| 0x13C|   FLASH_BUF[15]   |  — |
+| 0x140|   FLASH_BUF[16]   |  — |
+| 0x144|   FLASH_BUF[17]   |  — |
+| 0x148|   FLASH_BUF[18]   |  — |
+| 0x14C|   FLASH_BUF[19]   |  — |
+| 0x150|   FLASH_BUF[20]   |  — |
+| 0x154|   FLASH_BUF[21]   |  — |
+| 0x158|   FLASH_BUF[22]   |  — |
+| 0x15C|   FLASH_BUF[23]   |  — |
+| 0x160|   FLASH_BUF[24]   |  — |
+| 0x164|   FLASH_BUF[25]   |  — |
+| 0x168|   FLASH_BUF[26]   |  — |
+| 0x16C|   FLASH_BUF[27]   |  — |
+| 0x170|   FLASH_BUF[28]   |  — |
+| 0x174|   FLASH_BUF[29]   |  — |
+| 0x178|   FLASH_BUF[30]   |  — |
+| 0x17C|   FLASH_BUF[31]   |  — |
+| 0x180|   FLASH_BUF[32]   |  — |
+| 0x184|   FLASH_BUF[33]   |  — |
+| 0x188|   FLASH_BUF[34]   |  — |
+| 0x18C|   FLASH_BUF[35]   |  — |
+| 0x190|   FLASH_BUF[36]   |  — |
+| 0x194|   FLASH_BUF[37]   |  — |
+| 0x198|   FLASH_BUF[38]   |  — |
+| 0x19C|   FLASH_BUF[39]   |  — |
+| 0x1A0|   FLASH_BUF[40]   |  — |
+| 0x1A4|   FLASH_BUF[41]   |  — |
+| 0x1A8|   FLASH_BUF[42]   |  — |
+| 0x1AC|   FLASH_BUF[43]   |  — |
+| 0x1B0|   FLASH_BUF[44]   |  — |
+| 0x1B4|   FLASH_BUF[45]   |  — |
+| 0x1B8|   FLASH_BUF[46]   |  — |
+| 0x1BC|   FLASH_BUF[47]   |  — |
+| 0x1C0|   FLASH_BUF[48]   |  — |
+| 0x1C4|   FLASH_BUF[49]   |  — |
+| 0x1C8|   FLASH_BUF[50]   |  — |
+| 0x1CC|   FLASH_BUF[51]   |  — |
+| 0x1D0|   FLASH_BUF[52]   |  — |
+| 0x1D4|   FLASH_BUF[53]   |  — |
+| 0x1D8|   FLASH_BUF[54]   |  — |
+| 0x1DC|   FLASH_BUF[55]   |  — |
+| 0x1E0|   FLASH_BUF[56]   |  — |
+| 0x1E4|   FLASH_BUF[57]   |  — |
+| 0x1E8|   FLASH_BUF[58]   |  — |
+| 0x1EC|   FLASH_BUF[59]   |  — |
+| 0x1F0|   FLASH_BUF[60]   |  — |
+| 0x1F4|   FLASH_BUF[61]   |  — |
+| 0x1F8|   FLASH_BUF[62]   |  — |
+| 0x1FC|   FLASH_BUF[63]   |  — |
+
+### FL_INTERRUPT_STATE register
+
+- Absolute Address: 0xA4015000
+- Base Offset: 0x0
+- Size: 0x4
+
+|Bits|Identifier|  Access |Reset|Name|
+|----|----------|---------|-----|----|
+|  0 |   ERROR  |rw, woclr| 0x0 |  — |
+|  1 |   EVENT  |rw, woclr| 0x0 |  — |
+
+#### ERROR field
+
+<p>An operation finished with an error. Write 1 to clear.</p>
+
+#### EVENT field
+
+<p>An operation finished. Write 1 to clear.</p>
+
+### FL_INTERRUPT_ENABLE register
+
+- Absolute Address: 0xA4015004
+- Base Offset: 0x4
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |   ERROR  |  rw  | 0x0 |  — |
+|  1 |   EVENT  |  rw  | 0x0 |  — |
+
+#### ERROR field
+
+<p>Enable error interrupt</p>
+
+#### EVENT field
+
+<p>Enable event interrupt</p>
+
+### PAGE_SIZE register
+
+- Absolute Address: 0xA4015008
+- Base Offset: 0x8
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| PAGE_SIZE|  rw  |0x100|  — |
+
+#### PAGE_SIZE field
+
+<p>Page size in bytes. The controller uses 256 byte pages; an operation fails if this is less than 256.</p>
+
+### PAGE_NUM register
+
+- Absolute Address: 0xA401500C
+- Base Offset: 0xC
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| PAGE_NUM |  rw  | 0x0 |  — |
+
+#### PAGE_NUM field
+
+<p>The page number for read, write, erase operations</p>
+
+### PAGE_ADDR register
+
+- Absolute Address: 0xA4015010
+- Base Offset: 0x10
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| PAGE_ADDR|  rw  | 0x0 |  — |
+
+#### PAGE_ADDR field
+
+<p>Not used by the controller. Page data is exchanged through FLASH_BUF.</p>
+
+### FL_CONTROL register
+
+- Absolute Address: 0xA4015014
+- Base Offset: 0x14
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |   START  |  rw  | 0x0 |  — |
+| 2:1|    OP    |  rw  | 0x0 |  — |
+
+#### START field
+
+<p>Start the operation. Cleared by hardware when done.</p>
+
+#### OP field
+
+<p>"1" = Read page into FLASH_BUF, "2" = Write page from FLASH_BUF, "3" = Erase the 4 KiB sector containing the page</p>
+
+### OP_STATUS register
+
+- Absolute Address: 0xA4015018
+- Base Offset: 0x18
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |   DONE   |  rw  | 0x0 |  — |
+| 3:1|    ERR   |  rw  | 0x0 |  — |
+
+#### DONE field
+
+<p>Flash operation done. Set by hardware, cleared by software.</p>
+
+#### ERR field
+
+<p>Flash operation error. Set by hardware, cleared by software. "1" = Read Error, "2" = Write Error, "4" = Erase Error. An invalid operation code reports a read error.</p>
+
+### CTRL_REGWEN register
+
+- Absolute Address: 0xA401501C
+- Base Offset: 0x1C
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |    EN    |   r  | 0x1 |  — |
+
+#### EN field
+
+<p>1 when idle. 0 while an operation is running; writes to PAGE_SIZE, PAGE_NUM, FL_CONTROL and FLASH_BUF are then ignored.</p>
+
+### FLASH_SIZE register
+
+- Absolute Address: 0xA4015020
+- Base Offset: 0x20
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|FLASH_SIZE|   r  |  —  |  — |
+
+#### FLASH_SIZE field
+
+<p>Total flash size in bytes</p>
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015100
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015104
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015108
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401510C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015110
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015114
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015118
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401511C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015120
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015124
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015128
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401512C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015130
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015134
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015138
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401513C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015140
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015144
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015148
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401514C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015150
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015154
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015158
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401515C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015160
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015164
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015168
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401516C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015170
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015174
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015178
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401517C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015180
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015184
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015188
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401518C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015190
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015194
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA4015198
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA401519C
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151A0
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151A4
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151A8
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151AC
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151B0
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151B4
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151B8
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151BC
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151C0
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151C4
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151C8
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151CC
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151D0
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151D4
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151D8
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151DC
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151E0
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151E4
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151E8
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151EC
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151F0
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151F4
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151F8
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |
+
+### FLASH_BUF register
+
+- Absolute Address: 0xA40151FC
+- Base Offset: 0x100
+- Size: 0x4
+- Array Dimensions: [64]
+- Array Stride: 0x4
+- Total Size: 0x100
+
+<p>Page buffer</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0| FLASH_BUF|  rw  | 0x0 |  — |

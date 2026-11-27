@@ -574,7 +574,50 @@ module caliptra_wrapper_top (
     output	wire                      S_AXI_WRAPPER_RVALID,
     input	wire                      S_AXI_WRAPPER_RREADY,
     output	wire [31:0]               S_AXI_WRAPPER_RDATA,
-    output	wire [1:0]                S_AXI_WRAPPER_RRESP
+    output	wire [1:0]                S_AXI_WRAPPER_RRESP,
+
+    // AXI CDMA sideband
+    output wire [31:0] CDMA_USER,
+    input  wire        cdma_irq,
+
+    // Flash and SoC core memory S_AXI Interface
+    input  wire [31:0] S_AXI_FPGA_MEM_AWADDR,
+    input  wire [1:0]  S_AXI_FPGA_MEM_AWBURST,
+    input  wire [2:0]  S_AXI_FPGA_MEM_AWSIZE,
+    input  wire [7:0]  S_AXI_FPGA_MEM_AWLEN,
+    input  wire [31:0] S_AXI_FPGA_MEM_AWUSER,
+    input  wire [7:0]  S_AXI_FPGA_MEM_AWID,
+    input  wire        S_AXI_FPGA_MEM_AWLOCK,
+    input  wire        S_AXI_FPGA_MEM_AWVALID,
+    output wire        S_AXI_FPGA_MEM_AWREADY,
+    // W
+    input  wire [31:0] S_AXI_FPGA_MEM_WDATA,
+    input  wire [3:0]  S_AXI_FPGA_MEM_WSTRB,
+    input  wire        S_AXI_FPGA_MEM_WVALID,
+    output wire        S_AXI_FPGA_MEM_WREADY,
+    input  wire        S_AXI_FPGA_MEM_WLAST,
+    // B
+    output wire [1:0]  S_AXI_FPGA_MEM_BRESP,
+    output wire [7:0]  S_AXI_FPGA_MEM_BID,
+    output wire        S_AXI_FPGA_MEM_BVALID,
+    input  wire        S_AXI_FPGA_MEM_BREADY,
+    // AR
+    input  wire [31:0] S_AXI_FPGA_MEM_ARADDR,
+    input  wire [1:0]  S_AXI_FPGA_MEM_ARBURST,
+    input  wire [2:0]  S_AXI_FPGA_MEM_ARSIZE,
+    input  wire [7:0]  S_AXI_FPGA_MEM_ARLEN,
+    input  wire [31:0] S_AXI_FPGA_MEM_ARUSER,
+    input  wire [7:0]  S_AXI_FPGA_MEM_ARID,
+    input  wire        S_AXI_FPGA_MEM_ARLOCK,
+    input  wire        S_AXI_FPGA_MEM_ARVALID,
+    output wire        S_AXI_FPGA_MEM_ARREADY,
+    // R
+    output wire [31:0] S_AXI_FPGA_MEM_RDATA,
+    output wire [1:0]  S_AXI_FPGA_MEM_RRESP,
+    output wire [7:0]  S_AXI_FPGA_MEM_RID,
+    output wire        S_AXI_FPGA_MEM_RLAST,
+    output wire        S_AXI_FPGA_MEM_RVALID,
+    input  wire        S_AXI_FPGA_MEM_RREADY
     );
 
     axi4lite_intf wrapper_s_axil ();
@@ -621,6 +664,7 @@ module caliptra_wrapper_top (
     );
 
     assign ARM_USER = hwif_out.interface_regs.arm_user.arm_user.value;
+    assign CDMA_USER = hwif_out.interface_regs.cdma_axi_user.cdma_axi_user.value;
     assign xilinx_i3c_aresetn = axi_reset;
 
     // When sw sets trigger_axi_reset, assert the reset for 0xF cycles (requirement is 4 cycles).
@@ -2170,6 +2214,80 @@ always_ff @(posedge core_clk or negedge hwif_out.interface_regs.control.cptra_ss
 end
 assign hwif_in.interface_regs.ocp_lock_control_reg.rdy.next = ocp_lock_rdy;
 
+// SS_GENERIC_FW_EXEC_CTRL. The subsystem exports bits [127:3] and bit 2.
+logic [124:0] cptra_ss_cptra_generic_fw_exec_ctrl;
+logic [127:0] fw_exec_ctrl;
+assign fw_exec_ctrl = {cptra_ss_cptra_generic_fw_exec_ctrl, cptra_ss_cptra_generic_fw_exec_ctrl_2_mcu, 2'b0};
+for (genvar i = 0; i < 4; i++) begin : g_fw_exec_ctrl
+    assign hwif_in.interface_regs.fw_exec_ctrl[i].value.next = fw_exec_ctrl[32*i +: 32];
+end
+
+// Flash controllers and SoC core
+axi_if #(
+    .AW(32),
+    .DW(32),
+    .IW(8),
+    .UW(32)
+) fpga_mem_s_axi_if (.clk(core_clk), .rst_n(S_AXI_WRAPPER_ARESETN));
+
+// AW
+assign fpga_mem_s_axi_if.awaddr   = S_AXI_FPGA_MEM_AWADDR;
+assign fpga_mem_s_axi_if.awburst  = S_AXI_FPGA_MEM_AWBURST;
+assign fpga_mem_s_axi_if.awsize   = S_AXI_FPGA_MEM_AWSIZE;
+assign fpga_mem_s_axi_if.awlen    = S_AXI_FPGA_MEM_AWLEN;
+assign fpga_mem_s_axi_if.awuser   = S_AXI_FPGA_MEM_AWUSER;
+assign fpga_mem_s_axi_if.awid     = S_AXI_FPGA_MEM_AWID;
+assign fpga_mem_s_axi_if.awlock   = S_AXI_FPGA_MEM_AWLOCK;
+assign fpga_mem_s_axi_if.awvalid  = S_AXI_FPGA_MEM_AWVALID;
+assign S_AXI_FPGA_MEM_AWREADY = fpga_mem_s_axi_if.awready;
+// W
+assign fpga_mem_s_axi_if.wdata    = S_AXI_FPGA_MEM_WDATA;
+assign fpga_mem_s_axi_if.wstrb    = S_AXI_FPGA_MEM_WSTRB;
+assign fpga_mem_s_axi_if.wvalid   = S_AXI_FPGA_MEM_WVALID;
+assign S_AXI_FPGA_MEM_WREADY = fpga_mem_s_axi_if.wready;
+assign fpga_mem_s_axi_if.wlast    = S_AXI_FPGA_MEM_WLAST;
+// B
+assign S_AXI_FPGA_MEM_BRESP  = fpga_mem_s_axi_if.bresp;
+assign S_AXI_FPGA_MEM_BID    = fpga_mem_s_axi_if.bid;
+assign S_AXI_FPGA_MEM_BVALID = fpga_mem_s_axi_if.bvalid;
+assign fpga_mem_s_axi_if.bready  = S_AXI_FPGA_MEM_BREADY;
+// AR
+assign fpga_mem_s_axi_if.araddr  = S_AXI_FPGA_MEM_ARADDR;
+assign fpga_mem_s_axi_if.arburst = S_AXI_FPGA_MEM_ARBURST;
+assign fpga_mem_s_axi_if.arsize  = S_AXI_FPGA_MEM_ARSIZE;
+assign fpga_mem_s_axi_if.arlen   = S_AXI_FPGA_MEM_ARLEN;
+assign fpga_mem_s_axi_if.aruser  = S_AXI_FPGA_MEM_ARUSER;
+assign fpga_mem_s_axi_if.arid    = S_AXI_FPGA_MEM_ARID;
+assign fpga_mem_s_axi_if.arlock  = S_AXI_FPGA_MEM_ARLOCK;
+assign fpga_mem_s_axi_if.arvalid = S_AXI_FPGA_MEM_ARVALID;
+assign S_AXI_FPGA_MEM_ARREADY = fpga_mem_s_axi_if.arready;
+// R
+assign S_AXI_FPGA_MEM_RDATA  = fpga_mem_s_axi_if.rdata;
+assign S_AXI_FPGA_MEM_RRESP  = fpga_mem_s_axi_if.rresp;
+assign S_AXI_FPGA_MEM_RID    = fpga_mem_s_axi_if.rid;
+assign S_AXI_FPGA_MEM_RLAST  = fpga_mem_s_axi_if.rlast;
+assign S_AXI_FPGA_MEM_RVALID = fpga_mem_s_axi_if.rvalid;
+assign fpga_mem_s_axi_if.rready = S_AXI_FPGA_MEM_RREADY;
+
+logic primary_hw_flash_irq;
+logic secondary_hw_flash_irq;
+
+fpga_fw_update_devices fw_update_devices (
+    .clk                 (core_clk),
+    .rst                 (~S_AXI_WRAPPER_ARESETN),
+    .s_axi_w_if          (fpga_mem_s_axi_if.w_sub),
+    .s_axi_r_if          (fpga_mem_s_axi_if.r_sub),
+    .fw_exec_ctrl        (fw_exec_ctrl),
+    .hwif_out            (hwif_out),
+    .primary_flash_regs  (hwif_in.primary_hw_flash_ctrl_regs),
+    .secondary_flash_regs(hwif_in.secondary_hw_flash_ctrl_regs),
+    .soc_fifo_pop        (hwif_in.fifo_regs.soc_fifo_pop),
+    .soc_fifo_status     (hwif_in.fifo_regs.soc_fifo_status),
+    .soc_core_status     (hwif_in.interface_regs.soc_core_status),
+    .primary_flash_irq   (primary_hw_flash_irq),
+    .secondary_flash_irq (secondary_hw_flash_irq)
+);
+
 // TODO: Unconnected signals issue: https://github.com/chipsalliance/caliptra-mcu-sw/issues/370
 caliptra_ss_top #(
     .MCU_MBOX0_SIZE_KB(16),
@@ -2276,7 +2394,7 @@ caliptra_ss_top #(
     .cptra_ss_cptra_core_jtag_tdo_o(jtag_tdo),
     .cptra_ss_cptra_core_jtag_tdoEn_o(),
     //output logic [124:0]               cptra_ss_cptra_generic_fw_exec_ctrl_o, // TODO
-    .cptra_ss_cptra_generic_fw_exec_ctrl_o(),
+    .cptra_ss_cptra_generic_fw_exec_ctrl_o(cptra_ss_cptra_generic_fw_exec_ctrl),
     .cptra_ss_cptra_generic_fw_exec_ctrl_2_mcu_o(cptra_ss_cptra_generic_fw_exec_ctrl_2_mcu),
     .cptra_ss_cptra_generic_fw_exec_ctrl_2_mcu_i(cptra_ss_cptra_generic_fw_exec_ctrl_2_mcu),
 
@@ -2344,7 +2462,7 @@ caliptra_ss_top #(
     .cptra_ss_all_error_fatal_o(hwif_in.interface_regs.ss_all_error.ss_all_error_fatal.next),
     .cptra_ss_all_error_non_fatal_o(hwif_in.interface_regs.ss_all_error.ss_all_error_non_fatal.next),
 
-    .cptra_ss_mcu_ext_int({250'b0, secondary_flash_irq, primary_flash_irq, spare_i3c_irq_o}),
+    .cptra_ss_mcu_ext_int({247'b0, cdma_irq, secondary_hw_flash_irq, primary_hw_flash_irq, secondary_flash_irq, primary_flash_irq, spare_i3c_irq_o}),
     // MCU JTAG
     .cptra_ss_mcu_jtag_tck_i(mcu_jtag_tck_i),
     .cptra_ss_mcu_jtag_tms_i(mcu_jtag_tms_i),

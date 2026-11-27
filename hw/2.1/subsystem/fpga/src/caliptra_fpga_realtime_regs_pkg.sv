@@ -5,7 +5,7 @@ package caliptra_fpga_realtime_regs_pkg;
 
     localparam CALIPTRA_FPGA_REALTIME_REGS_DATA_WIDTH = 32;
     localparam CALIPTRA_FPGA_REALTIME_REGS_MIN_ADDR_WIDTH = 32;
-    localparam CALIPTRA_FPGA_REALTIME_REGS_SIZE = 'ha4013200;
+    localparam CALIPTRA_FPGA_REALTIME_REGS_SIZE = 'ha4015200;
 
     typedef struct {
         logic [31:0] next;
@@ -146,6 +146,27 @@ package caliptra_fpga_realtime_regs_pkg;
     } interface_regs__ocp_lock_control_reg__in_t;
 
     typedef struct {
+        logic next;
+    } interface_regs__soc_core_status__rst_b__in_t;
+
+    typedef struct {
+        logic next;
+    } interface_regs__soc_core_status__trap__in_t;
+
+    typedef struct {
+        interface_regs__soc_core_status__rst_b__in_t rst_b;
+        interface_regs__soc_core_status__trap__in_t trap;
+    } interface_regs__soc_core_status__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } interface_regs__fw_exec_ctrl__value__in_t;
+
+    typedef struct {
+        interface_regs__fw_exec_ctrl__value__in_t value;
+    } interface_regs__fw_exec_ctrl__in_t;
+
+    typedef struct {
         interface_regs__fpga_version__in_t fpga_version;
         interface_regs__status__in_t status;
         interface_regs__cycle_count__in_t cycle_count;
@@ -157,6 +178,8 @@ package caliptra_fpga_realtime_regs_pkg;
         interface_regs__ss_external_staging_area_base_addr__in_t ss_external_staging_area_base_addr;
         interface_regs__spare_i3c_control_sts__in_t spare_i3c_control_sts;
         interface_regs__ocp_lock_control_reg__in_t ocp_lock_control_reg;
+        interface_regs__soc_core_status__in_t soc_core_status;
+        interface_regs__fw_exec_ctrl__in_t fw_exec_ctrl[4];
     } interface_regs__in_t;
 
     typedef struct {
@@ -241,6 +264,42 @@ package caliptra_fpga_realtime_regs_pkg;
     } fifo_regs__msg_fifo_status__in_t;
 
     typedef struct {
+        logic [7:0] next;
+    } fifo_regs__soc_fifo_pop__out_data__in_t;
+
+    typedef struct {
+        logic next;
+    } fifo_regs__soc_fifo_pop__valid__in_t;
+
+    typedef struct {
+        fifo_regs__soc_fifo_pop__out_data__in_t out_data;
+        fifo_regs__soc_fifo_pop__valid__in_t valid;
+    } fifo_regs__soc_fifo_pop__in_t;
+
+    typedef struct {
+        logic next;
+    } fifo_regs__soc_fifo_status__to_host_empty__in_t;
+
+    typedef struct {
+        logic next;
+    } fifo_regs__soc_fifo_status__to_host_full__in_t;
+
+    typedef struct {
+        logic next;
+    } fifo_regs__soc_fifo_status__to_core_empty__in_t;
+
+    typedef struct {
+        logic next;
+    } fifo_regs__soc_fifo_status__to_core_full__in_t;
+
+    typedef struct {
+        fifo_regs__soc_fifo_status__to_host_empty__in_t to_host_empty;
+        fifo_regs__soc_fifo_status__to_host_full__in_t to_host_full;
+        fifo_regs__soc_fifo_status__to_core_empty__in_t to_core_empty;
+        fifo_regs__soc_fifo_status__to_core_full__in_t to_core_full;
+    } fifo_regs__soc_fifo_status__in_t;
+
+    typedef struct {
         fifo_regs__log_fifo_data__in_t log_fifo_data;
         fifo_regs__log_fifo_status__in_t log_fifo_status;
         fifo_regs__itrng_fifo_status__in_t itrng_fifo_status;
@@ -248,11 +307,21 @@ package caliptra_fpga_realtime_regs_pkg;
         fifo_regs__dbg_fifo_status__in_t dbg_fifo_status;
         fifo_regs__msg_fifo_pop__in_t msg_fifo_pop;
         fifo_regs__msg_fifo_status__in_t msg_fifo_status;
+        fifo_regs__soc_fifo_pop__in_t soc_fifo_pop;
+        fifo_regs__soc_fifo_status__in_t soc_fifo_status;
     } fifo_regs__in_t;
+
+    typedef struct {
+        logic rd_ack;
+        logic [31:0] rd_data;
+        logic wr_ack;
+    } hw_flash_ctrl_regs__external__in_t;
 
     typedef struct {
         interface_regs__in_t interface_regs;
         fifo_regs__in_t fifo_regs;
+        hw_flash_ctrl_regs__external__in_t primary_hw_flash_ctrl_regs;
+        hw_flash_ctrl_regs__external__in_t secondary_hw_flash_ctrl_regs;
     } caliptra_fpga_realtime_regs__in_t;
 
     typedef struct {
@@ -678,6 +747,32 @@ package caliptra_fpga_realtime_regs_pkg;
     } interface_regs__ocp_lock_control_reg__out_t;
 
     typedef struct {
+        logic [6:0] value;
+    } interface_regs__soc_core_control__exec_bit__out_t;
+
+    typedef struct {
+        logic value;
+    } interface_regs__soc_core_control__force_reset__out_t;
+
+    typedef struct {
+        logic value;
+    } interface_regs__soc_core_control__force_run__out_t;
+
+    typedef struct {
+        interface_regs__soc_core_control__exec_bit__out_t exec_bit;
+        interface_regs__soc_core_control__force_reset__out_t force_reset;
+        interface_regs__soc_core_control__force_run__out_t force_run;
+    } interface_regs__soc_core_control__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } interface_regs__cdma_axi_user__cdma_axi_user__out_t;
+
+    typedef struct {
+        interface_regs__cdma_axi_user__cdma_axi_user__out_t cdma_axi_user;
+    } interface_regs__cdma_axi_user__out_t;
+
+    typedef struct {
         interface_regs__fpga_magic__out_t fpga_magic;
         interface_regs__fpga_version__out_t fpga_version;
         interface_regs__control__out_t control;
@@ -712,6 +807,8 @@ package caliptra_fpga_realtime_regs_pkg;
         interface_regs__spare_i3c_control_sts__out_t spare_i3c_control_sts;
         interface_regs__ss_strap_generic__out_t ss_strap_generic[4];
         interface_regs__ocp_lock_control_reg__out_t ocp_lock_control_reg;
+        interface_regs__soc_core_control__out_t soc_core_control;
+        interface_regs__cdma_axi_user__out_t cdma_axi_user;
     } interface_regs__out_t;
 
     typedef struct {
@@ -831,6 +928,23 @@ package caliptra_fpga_realtime_regs_pkg;
     } fifo_regs__msg_fifo_status__out_t;
 
     typedef struct {
+        logic rd_swacc;
+    } fifo_regs__soc_fifo_pop__out_data__out_t;
+
+    typedef struct {
+        fifo_regs__soc_fifo_pop__out_data__out_t out_data;
+    } fifo_regs__soc_fifo_pop__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+        logic wr_swacc;
+    } fifo_regs__soc_fifo_push__in_data__out_t;
+
+    typedef struct {
+        fifo_regs__soc_fifo_push__in_data__out_t in_data;
+    } fifo_regs__soc_fifo_push__out_t;
+
+    typedef struct {
         fifo_regs__log_fifo_data__out_t log_fifo_data;
         fifo_regs__log_fifo_status__out_t log_fifo_status;
         fifo_regs__itrng_fifo_data__out_t itrng_fifo_data;
@@ -841,6 +955,8 @@ package caliptra_fpga_realtime_regs_pkg;
         fifo_regs__msg_fifo_pop__out_t msg_fifo_pop;
         fifo_regs__msg_fifo_push__out_t msg_fifo_push;
         fifo_regs__msg_fifo_status__out_t msg_fifo_status;
+        fifo_regs__soc_fifo_pop__out_t soc_fifo_pop;
+        fifo_regs__soc_fifo_push__out_t soc_fifo_push;
     } fifo_regs__out_t;
 
     typedef struct {
@@ -875,9 +991,19 @@ package caliptra_fpga_realtime_regs_pkg;
     } flash_ctrl_regs__out_t;
 
     typedef struct {
+        logic req;
+        logic [8:0] addr;
+        logic req_is_wr;
+        logic [31:0] wr_data;
+        logic [31:0] wr_biten;
+    } hw_flash_ctrl_regs__external__out_t;
+
+    typedef struct {
         interface_regs__out_t interface_regs;
         fifo_regs__out_t fifo_regs;
         flash_ctrl_regs__out_t primary_flash_ctrl_regs;
         flash_ctrl_regs__out_t secondary_flash_ctrl_regs;
+        hw_flash_ctrl_regs__external__out_t primary_hw_flash_ctrl_regs;
+        hw_flash_ctrl_regs__external__out_t secondary_hw_flash_ctrl_regs;
     } caliptra_fpga_realtime_regs__out_t;
 endpackage

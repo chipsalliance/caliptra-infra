@@ -26,6 +26,8 @@ The ARM CPU takes the place of an SOC manager and can drive stimulus to Caliptra
   - The Caliptra Core, MCU, and OTP ROMs are implemented as dual port SRAM's to allow them to be reconfigured without rebuilding. These SRAMs are mapped into the ARM CPU to allow them to be written by the hw-model before taking SS out of reset.
 - Xilinx I3C
   - The FPGA instantiates an I3C host controller to communicate with the SS I3C. In order for the I3C controllers to reach I3C bus speeds a higher clock is needed. The FPGA modifies caliptra_ss_top to insert CDC logic and run the SS I3C at the same clock.
+- Firmware update devices
+  - Two flash controllers backed by on-chip RAM, an AXI CDMA, and a small RV32 core that Caliptra releases from reset. See [Firmware update devices](#firmware-update-devices).
 
 ![](./images/caliptra_ss_fpga_block_diagram.svg)
 
@@ -159,14 +161,114 @@ Caliptra Subsystem toplevel. To add additional registers simply:
 | MCU ROM Backdoor                    | Always               | 128 KiB      | 0xB002_0000   | 0xB003_FFFF |
 | MCU ROM AXI Sub (provided by SS)    | cptra_ss_rst_b       | 128 KiB      | 0xB004_0000   | 0xB005_FFFF |
 | MCU SRAM                            | Always               | 96 KiB       | 0xB008_0000   | 0xB005_FFFF |
-| FPGA Wrapper Registers              | Always               | 8 KiB        | 0xA401_0000   | 0xA401_1FFF |
+| FPGA Wrapper Registers              | Always               | 64 KiB       | 0xA401_0000   | 0xA401_FFFF |
 | SS I3C                              | cptra_ss_rst_b       | 8 KiB        | 0xA403_0000   | 0xA403_1FFF |
 | LCC                                 | cptra_ss_rst_b       | 8 KiB        | 0xA404_0000   | 0xA404_1FFF |
 | OTP                                 | cptra_ss_rst_b       | 8 KiB        | 0xA406_0000   | 0xA406_1FFF |
 | Xilinx I3C                          | cptra_ss_rst_b       | 4 KiB        | 0xA408_0000   | 0xA408_0FFF |
+| AXI CDMA                            | Always               | 4 KiB        | 0xA408_1000   | 0xA408_1FFF |
 | AXI Firewall Control                | Always               | 4 KiB        | 0xA409_0000   | 0xA409_0FFF |
 | Caliptra                            | SS reset to Caliptra | 1 MiB        | 0xA410_0000   | 0xA41F_FFFF |
 | MCI                                 | cptra_ss_rst_b       | 16 MiB       | 0xA800_0000   | 0xA8FF_FFFF |
+| Staging SRAM                        | Always               | 256 KiB      | 0xB00C_0000   | 0xB00F_FFFF |
+| SoC core SRAM                       | Always               | 8 KiB        | 0xB400_0000   | 0xB400_1FFF |
+| Primary hardware flash contents     | Always               | 4 MiB        | 0xB500_0000   | 0xB53F_FFFF |
+| Secondary hardware flash contents   | Always               | 4 MiB        | 0xB600_0000   | 0xB63F_FFFF |
+
+The same addresses apply to every AXI manager: the ARM core, the MCU, the Caliptra DMA and the AXI CDMA.
+
+### Firmware update devices ###
+These devices let firmware update flows run on the FPGA with real hardware behind the flash and DMA registers: two flash controllers, the AXI CDMA, and a small SoC core that stands in for an SoC component whose firmware the MCU loads and Caliptra releases from reset.
+
+The `fpga_features` wrapper register (0xA401_0300) reports them. Bit 0 is the hardware flash controllers, bit 1 the CDMA interrupt and `cdma_axi_user`, bit 2 the SoC core. It reads as 0 on bitstreams that do not have them.
+
+#### Hardware flash controllers ####
+`primary_hw_flash_ctrl_regs` (0xA401_4000) and `secondary_hw_flash_ctrl_regs` (0xA401_5000) have the same register layout as the software-serviced `primary_flash_ctrl_regs` (0xA401_2000) and `secondary_flash_ctrl_regs` (0xA401_3000), which is in [fpga_wrapper_regs.md](fpga_wrapper_regs.md). The two pairs are separate register blocks and do not conflict: the host services the software-serviced pair, and only the RTL services the hardware pair. Both can be used in the same boot.
+
+Each hardware controller is backed by 4 MiB of UltraRAM and runs the operations itself ([fpga_hw_flash.sv](src/fpga_hw_flash.sv)). To run one, write the page number to `PAGE_NUM`, then write `FL_CONTROL` with `OP` in bits 2:1 and `START` in bit 0:
+
+| OP | Operation
+| -- | ---------
+| 1  | Read the 256 byte page `PAGE_NUM` into `FLASH_BUF`.
+| 2  | Write `FLASH_BUF` to the 256 byte page `PAGE_NUM`. The page is overwritten, so no erase is needed first.
+| 3  | Erase the 4 KiB sector that contains page `PAGE_NUM` to 0xFF.
+
+When the operation ends, the controller clears `START` and sets `OP_STATUS.DONE` (bit 0) and `FL_INTERRUPT_STATE.EVENT` (bit 1). If it failed, `OP_STATUS.ERR` (bits 3:1) is 1 for a read, 2 for a write or 4 for an erase, and `FL_INTERRUPT_STATE.ERROR` (bit 0) is set. `OP_STATUS` keeps its value until software writes it, so clear it before the next operation.
+
+Differences from the software-serviced registers:
+ - `FL_INTERRUPT_STATE` bits are cleared by writing 1.
+ - `CTRL_REGWEN` is read-only and is low while an operation runs.
+ - `FLASH_SIZE` is read-only.
+ - An operation fails if `PAGE_NUM` is past the end of the flash or `PAGE_SIZE` is less than 256. A page is always 256 bytes.
+ - An erase clears a 4 KiB sector.
+
+The flash reads as 0xFF after the bitstream is loaded and keeps its contents until the next load. The contents are also mapped on the AXI bus at 0xB500_0000 (primary) and 0xB600_0000 (secondary), so the host can load or inspect an image, and the AXI CDMA or the Caliptra DMA can read it without going through the page buffer.
+
+#### AXI CDMA ####
+The block design has an AMD AXI CDMA (AMD product guide PG034) in simple mode at 0xA408_1000. It can copy between any two AXI addresses in the memory map, for example from the flash contents to the SoC core SRAM. `cdma_introut` is MCU external interrupt 8.
+
+| Offset | Register | Use
+| ------ | -------- | ---
+| 0x00   | `CDMACR` | Bit 2 soft reset (reads 1 until done), bit 12 completion interrupt enable, bit 14 error interrupt enable.
+| 0x04   | `CDMASR` | Bit 1 idle, bit 4 internal error, bit 5 subordinate error, bit 6 decode error, bit 12 completion interrupt and bit 14 error interrupt (write 1 to clear).
+| 0x18   | `SA`     | Source address.
+| 0x20   | `DA`     | Destination address.
+| 0x28   | `BTT`    | Bytes to transfer. Writing it starts the transfer.
+
+A transfer is done when `CDMASR` bit 1 is set. After an error the CDMA stays halted until a soft reset.
+
+The `cdma_axi_user` wrapper register (0xA401_030C) sets the AxUSER value of the CDMA's transfers, for subordinates that check it. MCI serves the MCU SRAM execution region only to the MCU users (the `lsu_user` and `ifu_user` wrapper registers) while `SS_GENERIC_FW_EXEC_CTRL[2]` is set, and only to the SRAM configuration user (`sram_config_user`) while it is clear.
+
+Do not start a transfer to or from a subordinate that is in reset. The Accessibility column of the memory map shows which ones can be; the flash contents, the SoC core SRAM and the staging SRAM are always accessible. The CDMA sends the destination write address before it has read data, so while the source does not answer, the write burst stays open and other writers to that destination wait behind it. A host access that never completes stops the ARM core that made it, and the board then needs a power cycle.
+
+#### SoC core ####
+[fpga_soc_core.sv](src/fpga_soc_core.sv) is a PicoRV32 (RV32IMC) with 8 KiB of SRAM. The core starts at address 0 of its SRAM, which is loaded over the AXI bus at 0xB400_0000. The SRAM can be loaded while the core is in reset.
+
+| Wrapper register | Address | Fields
+| ---------------- | ------- | ------
+| `soc_core_control` | 0xA401_0304 | Bits 6:0 `exec_bit` (default 3), bit 8 `force_reset`, bit 9 `force_run`
+| `soc_core_status`  | 0xA401_0308 | Bit 0 `rst_b` (1 when the core is out of reset), bit 1 `trap`
+| `fw_exec_ctrl[4]`  | 0xA401_0310 | Mirror of `SS_GENERIC_FW_EXEC_CTRL`, 32 bits per word
+
+The core is held in reset until Caliptra sets the bit of `SS_GENERIC_FW_EXEC_CTRL` selected by `exec_bit`. For bring-up, `force_run` releases the core whatever that bit is, and `force_reset` holds it in reset and wins over `force_run`. `trap` is set when the core stops on an illegal instruction, a misaligned access or an `ebreak`, and is cleared by a reset of the core.
+
+The core has one FIFO of bytes in each direction: 1024 bytes towards the host and 64 bytes towards the core. A byte written to a full FIFO is dropped. The other end is in the wrapper registers, which the host and the MCU can both reach:
+
+| Core address | Core register | Wrapper register
+| ------------ | ------------- | ----------------
+| 0x1000_0000  | `DATA_OUT`: write a byte | `soc_fifo_pop` (0xA401_1028): bit 8 valid, bits 7:0 data. Reading removes the byte.
+| 0x1000_0004  | `DATA_IN`: bit 8 valid, bits 7:0 data. Reading removes the byte. | `soc_fifo_push` (0xA401_102C): write a byte
+| 0x1000_0008  | `STATUS`: bit 0 `DATA_OUT` full, bit 1 `DATA_OUT` empty, bit 2 `DATA_IN` empty, bit 3 `DATA_IN` full | `soc_fifo_status` (0xA401_1030): bit 0 `DATA_OUT` empty, bit 1 `DATA_OUT` full, bit 2 `DATA_IN` empty, bit 3 `DATA_IN` full
+
+[tb/soc_core_fw](tb/soc_core_fw) is a small Rust firmware that writes a banner to `DATA_OUT` and echoes what it receives.
+
+PicoRV32 is vendored in [third_party/picorv32](third_party/picorv32) under the ISC license.
+
+#### MCU external interrupts ####
+| Interrupt | Source
+| --------- | ------
+| 3         | Spare I3C core
+| 4         | `primary_flash_ctrl_regs`
+| 5         | `secondary_flash_ctrl_regs`
+| 6         | `primary_hw_flash_ctrl_regs`
+| 7         | `secondary_hw_flash_ctrl_regs`
+| 8         | AXI CDMA
+
+#### Host access ####
+`io_module.ko` registers the UIO device `caliptra-fpga-uio-dev2` with these mappings:
+
+| Mapping | Contents | Address | Size
+| ------- | -------- | ------- | ----
+| 0 | SoC core SRAM | 0xB400_0000 | 8 KiB
+| 1 | Primary hardware flash contents | 0xB500_0000 | 4 MiB
+| 2 | Secondary hardware flash contents | 0xB600_0000 | 4 MiB
+| 3 | Staging SRAM | 0xB00C_0000 | 256 KiB
+| 4 | AXI CDMA registers | 0xA408_1000 | 4 KiB
+
+The wrapper registers named above are inside the `fpga_wrapper` mapping of the first UIO device.
+
+#### Simulation ####
+`tb/run_sim.sh` builds the test firmware and simulates the flash controllers and the SoC core with the Vivado simulator. It needs Vivado and cargo (the firmware's `rust-toolchain.toml` selects the `riscv32imc-unknown-none-elf` target), and prints `TEST PASSED` on success.
 
 ### Waveform Debug ###
 If built with DEBUG=TRUE common signals for debug will be connected to ILAs. In addition images may be built with additional debug signals. This is a general procedure for loading a probes file when consuming an image built by someone else. If the image was built locally, this is unnecessary because the probes file will be loaded automatically.
